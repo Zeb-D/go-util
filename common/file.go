@@ -1,11 +1,13 @@
 package common
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"regexp"
+	"strings"
 )
 
 var digitRegexp = regexp.MustCompile("[0-9]+")
@@ -98,4 +100,43 @@ func IsDir(path string) bool {
 // 判断所给路径是否为文件
 func IsFile(path string) bool {
 	return !IsDir(path)
+}
+
+func ReadFile(filename string) []string {
+	var words []string
+
+	file, err := os.Open(filename)
+
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	reader := bufio.NewReader(file)
+	for {
+		line, err := reader.ReadString('\n')
+
+		if err != nil || io.EOF == err {
+			break
+		}
+
+		wordSlice := strings.Fields(line)
+		for _, word := range wordSlice {
+			if word = extractStr(strings.ToLower(word)); word != "" {
+				words = append(words, word)
+			}
+		}
+	}
+
+	return words
+}
+
+func extractStr(str string) string {
+	var res []rune
+	for _, letter := range str {
+		if letter >= 'a' && letter <= 'z' {
+			res = append(res, letter)
+		}
+	}
+	return string(res)
 }

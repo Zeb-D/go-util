@@ -27,6 +27,10 @@ type LinkedList struct {
 	size int
 }
 
+func NewLinkedList() *LinkedList {
+	return &LinkedList{}
+}
+
 func (linkedList *LinkedList) String() string {
 	return fmt.Sprintf("[size:%v,head:%v]", linkedList.size, linkedList.head)
 }
@@ -36,7 +40,7 @@ func (linkedList *LinkedList) Head() *Node {
 }
 
 // 获取链表中的元素个数
-func (linkedList *LinkedList) GetSize() int {
+func (linkedList *LinkedList) Size() int {
 	return linkedList.size
 }
 
@@ -96,6 +100,22 @@ func (linkedList *LinkedList) RemoveFirst() interface{} {
 	linkedList.head = linkedList.head.next
 	linkedList.size--
 	return e
+}
+
+// 从链表中删除元素e
+func (linkedList *LinkedList) RemoveElement(e interface{}) {
+	prev := linkedList.head
+	for prev.next != nil {
+		if prev.next.e == e {
+			delNode := prev.next
+			prev.next = delNode.next
+			delNode.next = nil
+			linkedList.size--
+
+			break
+		}
+		prev = prev.next
+	}
 }
 
 // 在链表的index(0-based)位置添加新的元素e

@@ -93,7 +93,7 @@ func NQueen(ql *QueenList, startX, startY int, Size int) error {
 	if ql == nil {
 		return errors.New("ql == nil")
 	}
-	if ql.QList.GetSize() == Size { //当list元素个数为SIZE时，表示SIZE个皇后都摆放完毕，打印后即可退出函数。
+	if ql.QList.Size() == Size { //当list元素个数为SIZE时，表示SIZE个皇后都摆放完毕，打印后即可退出函数。
 		PrintQueenList(ql, Size) //打印皇后摆放方式
 		return nil
 	}

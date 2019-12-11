@@ -9,7 +9,7 @@ func TestLinkedList_Add(t *testing.T) {
 	list := &LinkedList{}
 	fmt.Println(list.IsEmpty())
 	list.AddFirst("aaa")
-	fmt.Println(list.GetSize())
+	fmt.Println(list.Size())
 	list.AddFirst(111)
 	fmt.Println(list.head)
 	list.RemoveFirst()
