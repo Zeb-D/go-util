@@ -134,8 +134,8 @@ func (linkedList *LinkedList) Add(index int, e interface{}) error {
 		}
 
 		// 插入新节点
-		//Node := &Node{e: e, next: prev.next}
-		//prev.next = Node
+		//TwoWayNode := &TwoWayNode{e: e, next: prev.next}
+		//prev.next = TwoWayNode
 		prev.next = &Node{e, prev.next}
 		linkedList.size++
 	}

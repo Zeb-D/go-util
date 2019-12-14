@@ -174,6 +174,14 @@ func (arrayList *ArrayList) resize(newCapacity int) {
 	arrayList.data = newData
 }
 
+func (arrayList *ArrayList) Swap(i int, j int) error {
+	if i < 0 || i >= arrayList.size || j < 0 || j >= arrayList.size {
+		return errors.New("Index is illegal.")
+	}
+	arrayList.data[i], arrayList.data[j] = arrayList.data[j], arrayList.data[i]
+	return nil
+}
+
 // 重写 ArrayList 的 string 方法
 func (arrayList *ArrayList) String() string {
 	var buffer bytes.Buffer

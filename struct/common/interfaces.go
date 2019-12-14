@@ -6,6 +6,8 @@ import (
 )
 
 type ICompare interface {
+	// Compare one interface{},
+	// int return gt、eq、lt, if errors then failed
 	Compare(b interface{}) (int, error)
 }
 
