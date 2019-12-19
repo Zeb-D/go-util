@@ -63,7 +63,7 @@ func EcbDecrypt(data, key []byte) []byte {
 	return PKCS5Unpadding(decrypted)
 }
 
-//Sha256Sign
+// Sha256Sign
 func Sha256Sign(noSign string) string {
 	bs := []byte(noSign)
 	h := sha256.New()
@@ -71,15 +71,15 @@ func Sha256Sign(noSign string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-//MD5
+// MD5
 func MD5(noSign string) string {
 	md5Contain := md5.New()
 	md5Contain.Write([]byte(noSign))
 	return hex.EncodeToString(md5Contain.Sum(nil))
 }
 
-//HmacSha256
-func ComputeHmacSha256(message string, secret string) string {
+// HmacSha256
+func HmacSha256(message string, secret string) string {
 	key := []byte(secret)
 	h := hmac.New(sha256.New, key)
 	h.Write([]byte(message))

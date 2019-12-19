@@ -41,3 +41,15 @@ func TestBSTree(t *testing.T) {
 	fmt.Println(bst.Size())
 	assert.Equal(t, bst.Size(), 0)
 }
+
+func TestBSTree_Remove(t *testing.T) {
+	bst := NewBSTree()
+	bst.Add(2)
+	bst.Add(4)
+	bst.Add(1)
+	bst.Add(3)
+	fmt.Println(bst)
+	fmt.Println(bst.Maximum())
+	fmt.Println(bst.RemoveMax())
+	fmt.Println(bst)
+}
