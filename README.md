@@ -13,6 +13,7 @@
 本项目主要是各种工具封装与整理，但目录言简意赅
 
 > - apollo --读取配置中心
+> - bytepool --[]byte 内存池
 > - common --通用化工具
 > - crypto --加解密封装
 > - cache --  [cache package which implements a fixed-size thread safe LRU cache.](./cache/README.md)

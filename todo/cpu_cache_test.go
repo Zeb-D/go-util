@@ -49,7 +49,7 @@ type WithPadding struct {
 }
 
 func WithPaddingParallel() {
-	_ := cpu.CacheLinePad{}
+	_ = cpu.CacheLinePad{}
 	var v WithPadding
 
 	var wg sync.WaitGroup

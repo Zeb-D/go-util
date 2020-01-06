@@ -209,7 +209,7 @@ type LineRange struct {
 	To   int
 }
 
-var ErrLineRange = errors.New("naza.filebatch: line range error")
+var ErrLineRange = errors.New("go-util.file: line range error")
 
 func calcLineRange(len int, lr LineRange) (LineRange, error) {
 	// 换算成从0开始的下标
