@@ -3,6 +3,7 @@ package common
 import (
 	"errors"
 	"reflect"
+	"strings"
 )
 
 type ICompare interface {
@@ -103,13 +104,7 @@ func Compare(a interface{}, b interface{}) (int, error) {
 			return 0, nil
 		}
 	case string:
-		if a.(string) > b.(string) {
-			return 1, nil
-		} else if a.(string) < b.(string) {
-			return -1, nil
-		} else {
-			return 0, nil
-		}
+		return strings.Compare(a.(string), b.(string)), nil
 	case float32:
 		if a.(float32) > b.(float32) {
 			return 1, nil

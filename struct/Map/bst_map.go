@@ -13,6 +13,14 @@ type Node struct {
 	right *Node
 }
 
+func (n *Node) Key() interface{} {
+	return n.key
+}
+
+func (n *Node) Value() interface{} {
+	return n.val
+}
+
 type BSTMap struct {
 	root *Node
 	size int
@@ -137,6 +145,10 @@ func (b *BSTMap) removeMin(n *Node) *Node {
 
 	n.left = b.removeMin(n.left)
 	return n
+}
+
+func (b *BSTMap) RemoveMin() *Node {
+	return b.removeMin(b.root)
 }
 
 func (b *BSTMap) Contains(key interface{}) bool {

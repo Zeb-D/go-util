@@ -30,7 +30,7 @@ func NewAVLTree() *AVLTree {
 	return &AVLTree{}
 }
 
-// 判断该二叉树是否是一颗二分搜索树
+// 判断该二叉树是否是一颗二分搜索树，判断它的key 是否有序排序
 func (at *AVLTree) IsBST() bool {
 	var keys []interface{}
 	inOrderAVLTree(at.root, keys)
@@ -43,6 +43,7 @@ func (at *AVLTree) IsBST() bool {
 	return true
 }
 
+// inOrderAVLTree 中序遍历，key：左->中->右
 func inOrderAVLTree(n *avlTreeNode, keys []interface{}) {
 	if n == nil {
 		return

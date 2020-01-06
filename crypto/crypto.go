@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"github.com/Zeb-D/go-util/common"
 )
 
 //此处加解密、消息摘要
@@ -76,6 +77,11 @@ func MD5(noSign string) string {
 	md5Contain := md5.New()
 	md5Contain.Write([]byte(noSign))
 	return hex.EncodeToString(md5Contain.Sum(nil))
+}
+
+func Get16BitMD5(noSign string) string {
+	md5 := MD5(noSign)
+	return common.SubStringRange(md5, 8, 24)
 }
 
 // HmacSha256

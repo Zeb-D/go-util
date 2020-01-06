@@ -41,3 +41,8 @@ func TestDecryptAES(t *testing.T) {
 	fmt.Println()
 	fmt.Println(base64.StdEncoding.EncodeToString(rb))
 }
+
+func TestMD5(t *testing.T) {
+	s := "1112221212"
+	fmt.Println(MD5(s))
+}
