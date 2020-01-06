@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"log"
 	"os"
 	"testing"
 )
@@ -52,4 +53,92 @@ func TestGzip(t *testing.T) {
 		fmt.Println(line)
 	}
 	os.Remove(fName)
+}
+
+func TestIC(t *testing.T) {
+	log.SetFlags(log.Lmicroseconds)
+
+	// 单元测试 case
+	uidss := [][]uint32{
+		{1, 2, 3, 18, 32, 100},
+		{1, 2, 3, 18, 32},
+		{1, 2, 3, 18},
+		{1, 2, 3, 17},
+		{1, 2, 3, 16},
+		{1, 2, 3, 15, 16, 17, 18},
+		{1, 2, 3, 15, 16, 17},
+		{1, 2, 3, 15, 16},
+		{1, 2, 3, 15},
+		{1, 2, 3},
+		{1, 2},
+		{1},
+	}
+
+	var compressors []Compressor
+
+	compressors = append(compressors, &OriginCompressor{})
+	compressors = append(compressors, &OriginCompressor{ZlibExt: true})
+
+	compressors = append(compressors, &LFCompressor{FB: 0})
+	compressors = append(compressors, &LFCompressor{FB: 0, ZlibExt: true})
+	compressors = append(compressors, &LFCompressor{FB: 2})
+	compressors = append(compressors, &LFCompressor{FB: 4})
+	compressors = append(compressors, &LFCompressor{FB: 4, ZlibExt: true})
+
+	for _, c := range compressors {
+		for _, uids := range uidss {
+			log.Println("-----")
+			log.Println("in uid len:", len(uids))
+
+			Sort(uids)
+			b := c.Compress(uids)
+			log.Println("len(b):", len(b))
+
+			uids2 := c.UnCompress(b)
+			log.Println("out uid len:", len(uids2))
+
+			// assert check
+			if len(uids) != len(uids2) {
+				panic(0)
+			}
+			for i := range uids {
+				if uids[i] != uids2[i] {
+					panic(0)
+				}
+			}
+			log.Println("-----")
+		}
+	}
+}
+
+func marshalWrap(ids []uint32) (ret []byte) {
+	log.Println("> sort.")
+	Sort(ids)
+	log.Println("< sort.")
+
+	log.Println("> marshal.")
+	//var oc OriginCompressor
+	//ret = oc.Marshal(ids)
+
+	var lfc LFCompressor
+	lfc.FB = 4
+	ret = lfc.Compress(ids)
+	log.Println("< marshal.")
+
+	log.Println("> zlib. len:", len(ret))
+	ret = ZlibWrite(ret)
+	log.Println("< zlib. len:", len(ret))
+	return
+}
+
+func unmarshalWrap(b []byte) (ret []uint32) {
+	b = ZlibRead(b)
+
+	//var oc OriginCompressor
+	//ret = oc.Unmarshal(b)
+
+	var lfc LFCompressor
+	lfc.FB = 4
+	ret = lfc.UnCompress(b)
+	return
 }
