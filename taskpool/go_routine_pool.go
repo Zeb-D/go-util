@@ -145,6 +145,7 @@ func (p *goRoutinePool) AwaitTermination(unit time.Duration) (bool, error) {
 	defer p.m.Unlock()
 	//	参数为0，表示立即停止
 	if unit == 0*time.Nanosecond {
+		p.status = Stop
 		for _, work := range p.workers {
 			if work == nil {
 				continue
