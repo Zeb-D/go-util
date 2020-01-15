@@ -7,6 +7,20 @@ import (
 	"testing"
 )
 
+func TestScan2(t *testing.T) {
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+	}
+	fmt.Printf("bufio.NewScanner:%q\r\n", scanner.Text())
+
+	inputText2 := ""
+	stdin := bufio.NewReader(os.Stdin)
+	fmt.Fscan(stdin, &inputText2)
+	fmt.Printf("fmt.Fscan: %q\r\n", inputText2)
+}
+
 func TestScan(t *testing.T) {
 	var (
 		firstName, lastName, s string

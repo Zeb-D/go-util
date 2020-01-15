@@ -29,6 +29,7 @@ func TestRpcServer(tt *testing.T) {
 		store = NewProxyStore(*masterAddr)
 	} else {
 		store = NewURLStore(*dataFile)
+		defer os.Remove(*dataFile)
 	}
 	if *rpcEnabled { // the master is the rpc server:
 		rpc.RegisterName("Store", store)
@@ -166,7 +167,7 @@ func (s *URLStore) Put(url, key *string) error {
 }
 
 func (s *URLStore) load(filename string) error {
-	f, err := os.Open(filename)
+	f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		return err
 	}

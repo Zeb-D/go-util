@@ -65,6 +65,7 @@ func SetGlobalLog(appName string, prod bool, opts ...OptionFunc) {
 
 	log = NewLog(config)
 	sugarLog = log.Sugar()
+	Info("SetGlobalLog success", Any("appName", appName))
 }
 
 //func SetGlobalLog(config *LogConfig) {
