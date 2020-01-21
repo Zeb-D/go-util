@@ -80,6 +80,14 @@ func TestGrpcClient(t *testing.T) {
 	fmt.Println("client end")
 }
 
+func TestString(t *testing.T) {
+	ss := &pb.String{Value: "hello world " + strconv.Itoa(time.Now().Second())}
+	bs, _ := ss.XXX_Marshal([]byte{}, true)
+	fmt.Println(bs)
+	// 第一个长度大小、第二个长度开始
+	fmt.Println(string(bs))
+}
+
 // server is used to implement pb.HelloServiceServer.
 type server struct{}
 

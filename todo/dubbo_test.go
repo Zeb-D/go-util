@@ -42,6 +42,4 @@ func TestHessian(t *testing.T) {
 	//%+v 打印包括字段在内的实例的完整信息
 	//%#v 打印包括字段和限定类型名称在内的实例的完整信息
 	//%T 打印某个类型的完整说明
-	//result, err := DubboClientStu.DoGer("com.xxx.provider.service.IHelloService", "", "sleep", []string{"com.tuya.provider.common.domain.User"}, reqData)
-	//t.Log(result, err)
 }
