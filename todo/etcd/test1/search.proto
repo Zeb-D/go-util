@@ -1,0 +1,26 @@
+syntax = "proto3"; //指定proto版本
+package test;
+
+message SearchRequest {
+    UrlVO url = 1;
+    string bizType = 13;
+    int32 runMode = 14;
+}
+
+message UrlVO {
+    string url = 1;
+    string title = 2;
+    string snippets = 3;
+}
+
+message SearchResponse {
+    string requestID = 1;
+    bool success = 2;
+    string message = 3;
+    repeated string jobs = 4;
+}
+
+service SearchService {
+    rpc Search (SearchRequest) returns (SearchResponse) {
+    }
+}

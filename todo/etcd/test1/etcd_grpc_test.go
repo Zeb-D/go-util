@@ -1,11 +1,13 @@
-package etcd
+package test1
 
 import (
 	"context"
 	"flag"
 	"fmt"
 	"github.com/Zeb-D/go-util/common"
+	"github.com/Zeb-D/go-util/todo/etcd"
 	"github.com/Zeb-D/go-util/todo/etcd/pb"
+	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 	"log"
 	"net"
@@ -33,7 +35,7 @@ func TestEtcdGrpcServer(t *testing.T) {
 	}
 	localHost, err := common.LocalIp()
 	fmt.Println(localHost, " host->", err)
-	err = Register(*serv, localHost, *port, *reg, time.Second*10, 15)
+	err = etcd.Register(*serv, localHost, *port, *reg, time.Second*10, 15)
 	time.Sleep(time.Second)
 	if err != nil {
 		panic(err)
@@ -44,7 +46,7 @@ func TestEtcdGrpcServer(t *testing.T) {
 	go func() {
 		s := <-ch
 		log.Printf("receive signal '%v'", s)
-		UnRegister()
+		etcd.UnRegister()
 		os.Exit(1)
 	}()
 
@@ -58,7 +60,7 @@ func TestEtcdGrpcServer(t *testing.T) {
 func TestGrpcClient(t *testing.T) {
 	flag.Parse()
 	fmt.Println("serv", *serv)
-	r := NewResolver(*serv)
+	r := etcd.NewResolver(*serv)
 	b := grpc.RoundRobin(r)
 
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
@@ -82,12 +84,25 @@ func TestGrpcClient(t *testing.T) {
 	fmt.Println("client end")
 }
 
-func TestString(t *testing.T) {
-	ss := &pb.String{Value: "12"}
-	bs, _ := ss.XXX_Marshal([]byte{}, true)
+func TestSearchRequest(t *testing.T) {
+	url := &UrlVO{
+		Url:   "https://github.com/Zeb-D",
+		Title: "my-review",
+	}
+	ss := &SearchRequest{RunMode: 32904, BizType: "123", Url: url}
+	bs, _ := proto.Marshal(ss)
 	fmt.Println(bs)
 	// 第一个长度大小、第二个长度开始
 	fmt.Println(string(bs))
+	bs1, _ := proto.Marshal(url)
+
+	fmt.Println(bs1)
+	fmt.Println([]byte(url.Url))
+
+	url1 := &UrlVO{}
+	bs2 := []byte{10, 24, 104, 116, 116, 112, 115, 58, 47, 47, 103, 105, 116, 104, 117, 98, 46, 99, 111, 109, 47, 90, 101, 98, 45, 68, 18, 9, 109, 121, 45, 114, 101, 118, 105, 101, 119}
+	proto.Unmarshal(bs2, url1)
+	fmt.Println(url1.Url)
 }
 
 // server is used to implement pb.HelloServiceServer.
