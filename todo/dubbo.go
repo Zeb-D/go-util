@@ -1,15 +1,13 @@
 package todo
 
 import (
-	//dg "github.com/apache/dubbo-go/config"
-	//"github.com/apache/dubbo-go/protocol/dubbo"
 	"reflect"
 	"strings"
 )
 
 const (
 	Failover        = "failover"
-	DefaultRegistry = "zk_1"
+	DefaultRegistry = "yd_zk_1"
 	UNDERLINE       = "_"
 )
 

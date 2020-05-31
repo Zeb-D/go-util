@@ -1,11 +1,15 @@
 package todo
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	hessian "github.com/apache/dubbo-go-hessian2"
+	"github.com/apache/dubbo-go/config"
+	"github.com/apache/dubbo-go/protocol/dubbo"
 	"reflect"
 	"testing"
+	"time"
 )
 
 var loc = struct {
@@ -13,6 +17,37 @@ var loc = struct {
 	Load     string
 }{
 	Load: "Sz nanShan",
+}
+
+//本地测试
+//cd /go-util/todo
+//
+//export CONF_CONSUMER_FILE_PATH=$PWD"/dubbo_conf/client.yml"
+//export APP_LOG_CONF_FILE=$PWD"/dubbo_conf/log.yml"
+//go test -v -run TestDubbo
+func TestDubbo(t *testing.T) {
+	var appName = "HelloProviderGer"
+	var referenceConfig = config.ReferenceConfig{
+		InterfaceName: "com.yd.scala.dubbo.client.IHelloService",
+		Cluster:       "failover",
+		Registry:      DefaultRegistry,
+		Protocol:      dubbo.DUBBO,
+		Generic:       true,
+	}
+	referenceConfig.GenericLoad(appName) //appName is the unique identification of RPCService
+
+	time.Sleep(3 * time.Second)
+	println("\n\n\nstart to generic invoke")
+	resp, err := referenceConfig.GetRPCService().(*config.GenericService).Invoke(context.TODO(),
+		[]interface{}{"sayHello",
+			[]string{"java.lang.String"},
+			[]interface{}{"Yd"}})
+	if err != nil {
+		panic(err)
+	}
+	println("res: %+v\n", resp)
+	println("succ!")
+
 }
 
 func TestHessian(t *testing.T) {
