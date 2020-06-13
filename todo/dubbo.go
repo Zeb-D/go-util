@@ -1,9 +1,39 @@
 package todo
 
 import (
+	"context"
+	hessian "github.com/apache/dubbo-go-hessian2"
+	"github.com/apache/dubbo-go/config"
 	"reflect"
 	"strings"
 )
+
+var helloProvider HelloProvider
+
+func init() {
+	helloProvider = HelloProvider{}
+	config.SetConsumerService(&helloProvider)
+	hessian.RegisterPOJO(&User{})
+}
+
+type User struct {
+	//Id   string
+	Name string
+	Age  int32
+	//Time time.Time
+}
+
+type HelloProvider struct {
+	GetUser func(ctx context.Context, req []interface{}, rsp *User) error
+}
+
+func (u *HelloProvider) Reference() string {
+	return "HelloService"
+}
+
+func (User) JavaClassName() string {
+	return "com.yd.scala.dubbo.client.domain.User"
+}
 
 const (
 	Failover        = "failover"

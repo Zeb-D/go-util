@@ -21,14 +21,20 @@ encoderConfig:
   callerEncoder: "short"
   nameEncoder: ""
 
+outputPaths:
+  - "stderr"
+errorOutputPaths:
+  - "stderr"
+initialFields:
+
 #outputPaths:
 #  - "/app/logs/dubbo_out_put.log"
 #errorOutputPaths:
 #  - "/app/logs/dubbo_out_put.log"
 #initialFields:
 
-outputPaths:
-  - "./logs/dubbo_out_put.log"
-errorOutputPaths:
-  - "./logs/dubbo_out_put.log"
-initialFields:
+#outputPaths:
+#  - "./logs/dubbo_out_put.log"
+#errorOutputPaths:
+#  - "./logs/dubbo_out_put.log"
+#initialFields:

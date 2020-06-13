@@ -5,11 +5,20 @@ import (
 	"encoding/json"
 	"fmt"
 	hessian "github.com/apache/dubbo-go-hessian2"
+	_ "github.com/apache/dubbo-go/common/proxy/proxy_factory"
 	"github.com/apache/dubbo-go/config"
 	"github.com/apache/dubbo-go/protocol/dubbo"
+	_ "github.com/apache/dubbo-go/registry/protocol"
 	"reflect"
 	"testing"
 	"time"
+
+	_ "github.com/apache/dubbo-go/cluster/cluster_impl"
+	_ "github.com/apache/dubbo-go/cluster/loadbalance"
+	_ "github.com/apache/dubbo-go/filter/filter_impl"
+	_ "github.com/apache/dubbo-go/registry/zookeeper"
+
+	_ "github.com/apache/dubbo-go/protocol/dubbo"
 )
 
 var loc = struct {
@@ -19,14 +28,18 @@ var loc = struct {
 	Load: "Sz nanShan",
 }
 
+var (
+	Version = "2.7.4"
+)
+
 //本地测试
 //cd /go-util/todo
 //
 //export CONF_CONSUMER_FILE_PATH=$PWD"/dubbo_conf/client.yml"
 //export APP_LOG_CONF_FILE=$PWD"/dubbo_conf/log.yml"
 //go test -v -run TestDubbo
-func TestDubbo(t *testing.T) {
-	var appName = "HelloProviderGer"
+func TestDubboGeneric(t *testing.T) {
+	//config.Load()
 	var referenceConfig = config.ReferenceConfig{
 		InterfaceName: "com.yd.scala.dubbo.client.IHelloService",
 		Cluster:       "failover",
@@ -34,6 +47,7 @@ func TestDubbo(t *testing.T) {
 		Protocol:      dubbo.DUBBO,
 		Generic:       true,
 	}
+	appName := referenceConfig.InterfaceName + UNDERLINE + ""
 	referenceConfig.GenericLoad(appName) //appName is the unique identification of RPCService
 
 	time.Sleep(3 * time.Second)
@@ -45,9 +59,28 @@ func TestDubbo(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	println("res: %+v\n", resp)
-	println("succ!")
+	fmt.Println("res:", resp)
+	resp, err = referenceConfig.GetRPCService().(*config.GenericService).Invoke(context.TODO(),
+		[]interface{}{"takeUid",
+			[]string{"java.lang.String"},
+			[]interface{}{"Yd"}})
+	fmt.Println("res: ", resp)
+}
 
+func TestDubboClient(t *testing.T) {
+	defer func() {}()
+	config.Load()
+	time.Sleep(3e9)
+
+	println("\n\n\nstart to test dubbo")
+	user := &User{}
+	fmt.Println(helloProvider)
+	err := helloProvider.GetUser(context.TODO(), []interface{}{"A001"}, user)
+	//if err != nil {
+	//	panic(err)
+	//}
+	fmt.Println("response result: %", err)
+	fmt.Println("response result: ", user)
 }
 
 func TestHessian(t *testing.T) {
