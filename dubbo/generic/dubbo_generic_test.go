@@ -66,3 +66,39 @@ func TestGenericInvoke(t *testing.T) {
 	resp, err = Invoke(invokeReq, []interface{}{"1Yd"})
 	fmt.Println("resp: ", resp)
 }
+
+//	TestBooleanInvoke 主要测试boolean值名称从isXxx变成xxx，及Java的BigInteger等BigXxx字段类型
+func TestBooleanInvoke(t *testing.T) {
+	//var invokeReq1 = InvokeReq{
+	//	InterfaceName:  "com.yd.scala.dubbo.client.ITestService",
+	//	Method:         "test",
+	//	ParameterTypes: []string{"java.lang.String", "java.lang.Boolean"},
+	//	//ProviderUrl:    "dubbo://localhost:20921",
+	//}
+	//
+	//resp, err := Invoke(invokeReq1, []interface{}{"Yd1",true})
+	//fmt.Println("resp: ", resp)
+	//fmt.Println("err: ", err)
+
+	var invokeReq1 = InvokeReq{
+		InterfaceName:  "com.tuya.tiandi.atop.aftersale.ITestService",
+		Method:         "test",
+		ParameterTypes: []string{"java.lang.String", "java.lang.Boolean"},
+		//ProviderUrl:    "dubbo://localhost:20921",
+	}
+
+	resp, err := Invoke(invokeReq1, []interface{}{"Yd1", nil})
+	fmt.Println("resp: ", resp)
+	fmt.Println("err: ", err)
+
+	var invokeReq = InvokeReq{
+		InterfaceName:  "com.tuya.tiandi.atop.aftersale.IAfterSaleOrderAtopService",
+		Method:         "get",
+		ParameterTypes: []string{"java.lang.String", "java.lang.String"},
+		//ProviderUrl:    "dubbo://localhost:20921",
+	}
+
+	resp, err = Invoke(invokeReq, []interface{}{"Yd1", "a"})
+	fmt.Println("resp: ", resp)
+	fmt.Println("err: ", err)
+}

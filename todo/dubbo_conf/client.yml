@@ -20,7 +20,7 @@ registries :
   "yd_zk_1":
     protocol: "zookeeper"
     timeout	: "3s"
-    address: "localhost:2181"
+    address: "172.16.248.32:2181,172.16.248.132:2181,172.16.248.133:2181"
     username: ""
     password: ""
 

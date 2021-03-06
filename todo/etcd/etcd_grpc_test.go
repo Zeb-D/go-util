@@ -11,7 +11,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"testing"
 	"time"
@@ -71,7 +70,7 @@ func TestGrpcClient(t *testing.T) {
 	time.Sleep(time.Second) //	为什么要给点时间建立连接？watcher机制没触发？
 	for i := 0; i < 10; i++ {
 		client := pb.NewHelloServiceClient(conn)
-		resp, err := client.Hello(context.Background(), &pb.String{Value: "world " + strconv.Itoa(time.Now().Second())})
+		resp, err := client.Hello(context.Background(), &pb.String{Value: "11111"})
 		if err == nil {
 			fmt.Printf("%v: Reply is %s\n", time.Now(), resp.Value)
 		} else {
@@ -83,8 +82,8 @@ func TestGrpcClient(t *testing.T) {
 }
 
 func TestString(t *testing.T) {
-	ss := &pb.String{Value: "12"}
-	bs, _ := ss.XXX_Marshal([]byte{}, true)
+	ss := &pb.String{Value: "11111"}
+	bs, _ := ss.XXX_Marshal([]byte{}, false)
 	fmt.Println(bs)
 	// 第一个长度大小、第二个长度开始
 	fmt.Println(string(bs))

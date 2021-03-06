@@ -47,21 +47,22 @@ type InvokeReq struct {
 	InterfaceName  string
 	Version        string
 	Method         string
+	ProviderUrl    string //"dubbo://{provider host}:{provider port}"
 	ParameterTypes []string
 }
 
 func (p *genericServicePool) Invoke(req InvokeReq, reqData []interface{}) (resp interface{}, err error) {
-	return InvokeGeneric(req.InterfaceName, req.Version, req.Method, req.ParameterTypes, reqData)
+	return InvokeGeneric(req.InterfaceName, req.Version, req.Method, req.ProviderUrl, req.ParameterTypes, reqData)
 }
 
 func Invoke(req InvokeReq, reqData []interface{}) (resp interface{}, err error) {
 	return servicePool.Invoke(req, reqData)
 }
 
-func InvokeGeneric(interfaceName string, version string, method string,
+func InvokeGeneric(interfaceName, version string, method, providerUrl string,
 	parameterTypes []string, reqData []interface{}) (resp interface{}, err error) {
 
-	service, _ := servicePool.getGenericService(interfaceName, version)
+	service, _ := servicePool.getGenericService(interfaceName, version, providerUrl)
 	resp, err = service.Invoke(context.TODO(),
 		[]interface{}{method, parameterTypes, reqData})
 	if err != nil {
@@ -101,7 +102,7 @@ func (p *genericServicePool) check(pattern string) bool {
 	}
 }
 
-func (p *genericServicePool) createGenericService(interfaceName, version string) *dG.GenericService {
+func (p *genericServicePool) createGenericService(interfaceName, version, providerUrl string) *dG.GenericService {
 	key := interfaceName + UNDERLINE + version
 	var referenceConfig = dG.ReferenceConfig{
 		InterfaceName: interfaceName,
@@ -112,6 +113,10 @@ func (p *genericServicePool) createGenericService(interfaceName, version string)
 		Generic:       true,
 		Retries:       Retries,
 	}
+	if len(providerUrl) > 0 {
+		// 本地直连地址，格式为url="dubbo://{provider host}:{provider port}"
+		referenceConfig.Url = providerUrl
+	}
 	//referenceConfig.Load(interfaceName) //appName是GetService的唯一标识不可缺少
 	referenceConfig.GenericLoad(interfaceName)
 	time.Sleep(200 * time.Millisecond) //第一次生成客户端时等待zk连接，目前等待200毫秒 如果需要不等待 请在启动时init
@@ -120,12 +125,12 @@ func (p *genericServicePool) createGenericService(interfaceName, version string)
 	return genericService
 }
 
-func (p *genericServicePool) getGenericService(interfaceName, version string) (*dG.GenericService, int) {
+func (p *genericServicePool) getGenericService(interfaceName, version, providerUrl string) (*dG.GenericService, int) {
 	key := interfaceName + UNDERLINE + version
 	if p.check(key) {
 		return p.get(key), 0
 	} else {
-		service := p.createGenericService(interfaceName, version)
+		service := p.createGenericService(interfaceName, version, providerUrl)
 		return service, 1
 	}
 }
