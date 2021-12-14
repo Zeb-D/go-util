@@ -17,7 +17,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.1.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.12.1 // indirect
 	github.com/influxdata/influxdb v1.7.9
-	github.com/json-iterator/go v1.1.9 // indirect
+	github.com/json-iterator/go v1.1.9
 	github.com/magiconair/properties v1.8.1
 	github.com/onsi/ginkgo v1.10.1 // indirect
 	github.com/onsi/gomega v1.7.0 // indirect
