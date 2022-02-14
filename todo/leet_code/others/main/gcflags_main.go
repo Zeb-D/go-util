@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"reflect"
+)
 
 //这里主要研究golang的内存逃逸
 
@@ -35,6 +38,12 @@ func main() {
 	b := a.s + " world"
 	c := b + "!"
 	fmt.Println(c) //这个fmt参数是个interface，所以c会逃逸到堆上
+	//reflect.ValueOf //逃逸到堆意味着将值拷贝一份到堆上
+	var aa = "xxx"
+	_ = reflect.ValueOf(&aa)
+
+	var bb = "xxx2"
+	_ = reflect.TypeOf(&bb)
 }
 
 //➜  main git:(master) ✗ go build -gcflags=-m gcflags_main.go
