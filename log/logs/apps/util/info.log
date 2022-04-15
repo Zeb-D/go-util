@@ -1,0 +1,30 @@
+2022-03-17T18:17:21.017+0800	info	log/log.go:68	SetGlobalLog success	{"appName": "util"}
+2022-03-17T18:17:21.018+0800	info	log/log_test.go:26	info	{"version": "v1"}
+2022-03-17T18:17:21.018+0800	info	log/log_test.go:27	info-test	{"myName": "go-util"}
+2022-03-17T18:17:21.018+0800	error	log/log_test.go:28	error-test
+github.com/Zeb-D/go-util/log.Error
+	/Users/zouyongdong/GolandProjects/go-util/log/log.go:39
+github.com/Zeb-D/go-util/log.TestZapInfoLog
+	/Users/zouyongdong/GolandProjects/go-util/log/log_test.go:28
+testing.tRunner
+	/usr/local/go/src/testing/testing.go:1193
+2022-03-17T18:17:21.018+0800	error	log/log_test.go:29	any-test	{"a": null}
+github.com/Zeb-D/go-util/log.Error
+	/Users/zouyongdong/GolandProjects/go-util/log/log.go:39
+github.com/Zeb-D/go-util/log.TestZapInfoLog
+	/Users/zouyongdong/GolandProjects/go-util/log/log_test.go:29
+testing.tRunner
+	/usr/local/go/src/testing/testing.go:1193
+2022-03-17T18:20:36.364+0800	info	log/log.go:68	SetGlobalLog success	{"appName": "util"}
+2022-03-17T18:20:36.367+0800	info	testing/testing.go:1193	aaa	{"a": "a"}
+2022-03-17T18:20:36.367+0800	info	testing/testing.go:1193	aaa	{"a": null}
+2022-03-17T18:22:23.389+0800	info	log/log.go:68	SetGlobalLog success	{"appName": "util"}
+2022-03-17T18:22:23.389+0800	info	testing/testing.go:1193	aaa	{"a": "a"}
+2022-03-17T18:22:23.389+0800	info	testing/testing.go:1193	aaa	{"a": null}
+2022-03-17T18:23:20.461+0800	info	log/log.go:68	SetGlobalLog success	{"appName": "util"}
+2022-03-17T18:23:20.461+0800	info	testing/testing.go:1193	aaa	{"a": "a"}
+2022-03-17T18:23:20.462+0800	warn	testing/testing.go:1193	aaa	{"a": null}
+github.com/Zeb-D/go-util/log.TestSugarLog
+	/Users/zouyongdong/GolandProjects/go-util/log/log_test.go:26
+testing.tRunner
+	/usr/local/go/src/testing/testing.go:1193

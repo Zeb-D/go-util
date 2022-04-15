@@ -81,7 +81,7 @@ func TestBooleanInvoke(t *testing.T) {
 	//fmt.Println("err: ", err)
 
 	var invokeReq1 = InvokeReq{
-		InterfaceName:  "com.tuya.tiandi.atop.aftersale.ITestService",
+		InterfaceName:  "com.xxx.xxx.xxx.aftersale.ITestService",
 		Method:         "test",
 		ParameterTypes: []string{"java.lang.String", "java.lang.Boolean"},
 		//ProviderUrl:    "dubbo://localhost:20921",
@@ -92,7 +92,7 @@ func TestBooleanInvoke(t *testing.T) {
 	fmt.Println("err: ", err)
 
 	var invokeReq = InvokeReq{
-		InterfaceName:  "com.tuya.tiandi.atop.aftersale.IAfterSaleOrderAtopService",
+		InterfaceName:  "com.xxx.xxx.xxx.xxx.IAfterSaleOrderAtopService",
 		Method:         "get",
 		ParameterTypes: []string{"java.lang.String", "java.lang.String"},
 		//ProviderUrl:    "dubbo://localhost:20921",

@@ -33,7 +33,7 @@ func NewAVLTree() *AVLTree {
 // 判断该二叉树是否是一颗二分搜索树，判断它的key 是否有序排序
 func (at *AVLTree) IsBST() bool {
 	var keys []interface{}
-	inOrderAVLTree(at.root, keys)
+	inOrderAVLTree(at.root, &keys)
 
 	for i := 1; i < len(keys); i++ {
 		if ret, err := common.Compare(keys[i-1], keys[i]); err == nil && ret == 1 {
@@ -44,13 +44,13 @@ func (at *AVLTree) IsBST() bool {
 }
 
 // inOrderAVLTree 中序遍历，key：左->中->右
-func inOrderAVLTree(n *avlTreeNode, keys []interface{}) {
+func inOrderAVLTree(n *avlTreeNode, keys *[]interface{}) {
 	if n == nil {
 		return
 	}
 
 	inOrderAVLTree(n.left, keys)
-	keys = append(keys, n.key)
+	*keys = append(*keys, n.key)
 	inOrderAVLTree(n.right, keys)
 }
 

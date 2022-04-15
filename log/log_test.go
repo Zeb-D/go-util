@@ -20,12 +20,19 @@ func TestSayHello(t *testing.T) {
 	sayHello("test", "yda")
 }
 
+func TestSugarLog(t *testing.T) {
+	SetGlobalLog("util", false, WithHooksOption(hookTest{}))
+	sugarLog.Infow("aaa", "a", "a")
+	sugarLog.Warnw("aaa", "a", nil) //panic
+}
+
 func TestZapInfoLog(t *testing.T) {
 	SetGlobalLog("util", false, WithHooksOption(hookTest{}))
 	println("zapInfoLog")
 	zapInfoLog("info", zap.String("version", "v1"))
 	Info("info-test", String("myName", "go-util"))
 	Error("error-test", ErrorField(nil))
+	Error("any-test", Any("a", nil))
 }
 
 func BenchmarkString(b *testing.B) {
