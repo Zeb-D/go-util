@@ -8,7 +8,7 @@ import (
 	"io"
 )
 
-// Encrypt encrypts data using 128-bit AES-GCM.  This both hides the content of
+// GcmEncrypt encrypts data using 128-bit AES-GCM.  This both hides the content of
 // the data and provides a check that it hasn't been altered. Output takes the
 // form nonce|ciphertext|tag where '|' indicates concatenation.
 func GcmEncrypt(plaintext []byte, key []byte) (ciphertext []byte, err error) {
@@ -31,7 +31,7 @@ func GcmEncrypt(plaintext []byte, key []byte) (ciphertext []byte, err error) {
 	return gcm.Seal(nonce, nonce, plaintext, nil), nil
 }
 
-// Decrypt decrypts data using 128-bit AES-GCM.  This both hides the content of
+// GcmDecrypt decrypts data using 128-bit AES-GCM.  This both hides the content of
 // the data and provides a check that it hasn't been altered. Expects input
 // form nonce|ciphertext|tag where '|' indicates concatenation.
 func GcmDecrypt(ciphertext []byte, key []byte) (plaintext []byte, err error) {

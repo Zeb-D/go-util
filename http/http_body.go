@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-//关于http Request还是Response的body 流只能读取一次，那么如何做到拦截式输出到日志
+// ExtractResponseBody 关于http Request还是Response的body 流只能读取一次，那么如何做到拦截式输出到日志
 func ExtractResponseBody(resp *http.Response, revert bool) []byte {
 	if resp == nil || resp.Body == nil {
 		return nil

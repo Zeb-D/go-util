@@ -12,7 +12,7 @@ import (
 	"github.com/Zeb-D/go-util/common"
 )
 
-//此处加解密、消息摘要
+// PKCS5Padding
 func PKCS5Padding(ciphertext []byte, blockSize int) []byte {
 	padding := blockSize - len(ciphertext)%blockSize
 	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
