@@ -1,12 +1,17 @@
-package cache
+package v1
 
 import (
 	"math/rand"
 	"testing"
+	"time"
 )
 
-func Benchmark2Q_Rand(b *testing.B) {
-	l, err := New2Q(8192)
+func init() {
+	rand.Seed(time.Now().Unix())
+}
+
+func BenchmarkARC_Rand(b *testing.B) {
+	l, err := NewARC(8192)
 	if err != nil {
 		b.Fatalf("err: %v", err)
 	}
@@ -34,8 +39,8 @@ func Benchmark2Q_Rand(b *testing.B) {
 	b.Logf("hit: %d miss: %d ratio: %f", hit, miss, float64(hit)/float64(miss))
 }
 
-func Benchmark2Q_Freq(b *testing.B) {
-	l, err := New2Q(8192)
+func BenchmarkARC_Freq(b *testing.B) {
+	l, err := NewARC(8192)
 	if err != nil {
 		b.Fatalf("err: %v", err)
 	}
@@ -66,9 +71,9 @@ func Benchmark2Q_Freq(b *testing.B) {
 	b.Logf("hit: %d miss: %d ratio: %f", hit, miss, float64(hit)/float64(miss))
 }
 
-func Test2Q_RandomOps(t *testing.T) {
+func TestARC_RandomOps(t *testing.T) {
 	size := 128
-	l, err := New2Q(128)
+	l, err := NewARC(128)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -86,15 +91,19 @@ func Test2Q_RandomOps(t *testing.T) {
 			l.Remove(key)
 		}
 
-		if l.recent.Len()+l.frequent.Len() > size {
-			t.Fatalf("bad: recent: %d freq: %d",
-				l.recent.Len(), l.frequent.Len())
+		if l.t1.Len()+l.t2.Len() > size {
+			t.Fatalf("bad: t1: %d t2: %d b1: %d b2: %d p: %d",
+				l.t1.Len(), l.t2.Len(), l.b1.Len(), l.b2.Len(), l.p)
+		}
+		if l.b1.Len()+l.b2.Len() > size {
+			t.Fatalf("bad: t1: %d t2: %d b1: %d b2: %d p: %d",
+				l.t1.Len(), l.t2.Len(), l.b1.Len(), l.b2.Len(), l.p)
 		}
 	}
 }
 
-func Test2Q_Get_RecentToFrequent(t *testing.T) {
-	l, err := New2Q(128)
+func TestARC_Get_RecentToFrequent(t *testing.T) {
+	l, err := NewARC(128)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -103,10 +112,10 @@ func Test2Q_Get_RecentToFrequent(t *testing.T) {
 	for i := 0; i < 128; i++ {
 		l.Add(i, i)
 	}
-	if n := l.recent.Len(); n != 128 {
+	if n := l.t1.Len(); n != 128 {
 		t.Fatalf("bad: %d", n)
 	}
-	if n := l.frequent.Len(); n != 0 {
+	if n := l.t2.Len(); n != 0 {
 		t.Fatalf("bad: %d", n)
 	}
 
@@ -117,10 +126,10 @@ func Test2Q_Get_RecentToFrequent(t *testing.T) {
 			t.Fatalf("missing: %d", i)
 		}
 	}
-	if n := l.recent.Len(); n != 0 {
+	if n := l.t1.Len(); n != 0 {
 		t.Fatalf("bad: %d", n)
 	}
-	if n := l.frequent.Len(); n != 128 {
+	if n := l.t2.Len(); n != 128 {
 		t.Fatalf("bad: %d", n)
 	}
 
@@ -131,97 +140,159 @@ func Test2Q_Get_RecentToFrequent(t *testing.T) {
 			t.Fatalf("missing: %d", i)
 		}
 	}
-	if n := l.recent.Len(); n != 0 {
+	if n := l.t1.Len(); n != 0 {
 		t.Fatalf("bad: %d", n)
 	}
-	if n := l.frequent.Len(); n != 128 {
-		t.Fatalf("bad: %d", n)
-	}
-}
-
-func Test2Q_Add_RecentToFrequent(t *testing.T) {
-	l, err := New2Q(128)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Add initially to recent
-	l.Add(1, 1)
-	if n := l.recent.Len(); n != 1 {
-		t.Fatalf("bad: %d", n)
-	}
-	if n := l.frequent.Len(); n != 0 {
-		t.Fatalf("bad: %d", n)
-	}
-
-	// Add should upgrade to frequent
-	l.Add(1, 1)
-	if n := l.recent.Len(); n != 0 {
-		t.Fatalf("bad: %d", n)
-	}
-	if n := l.frequent.Len(); n != 1 {
-		t.Fatalf("bad: %d", n)
-	}
-
-	// Add should remain in frequent
-	l.Add(1, 1)
-	if n := l.recent.Len(); n != 0 {
-		t.Fatalf("bad: %d", n)
-	}
-	if n := l.frequent.Len(); n != 1 {
+	if n := l.t2.Len(); n != 128 {
 		t.Fatalf("bad: %d", n)
 	}
 }
 
-func Test2Q_Add_RecentEvict(t *testing.T) {
-	l, err := New2Q(4)
+func TestARC_Add_RecentToFrequent(t *testing.T) {
+	l, err := NewARC(128)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Add 1,2,3,4,5 -> Evict 1
+	// Add initially to t1
 	l.Add(1, 1)
-	l.Add(2, 2)
-	l.Add(3, 3)
+	if n := l.t1.Len(); n != 1 {
+		t.Fatalf("bad: %d", n)
+	}
+	if n := l.t2.Len(); n != 0 {
+		t.Fatalf("bad: %d", n)
+	}
+
+	// Add should upgrade to t2
+	l.Add(1, 1)
+	if n := l.t1.Len(); n != 0 {
+		t.Fatalf("bad: %d", n)
+	}
+	if n := l.t2.Len(); n != 1 {
+		t.Fatalf("bad: %d", n)
+	}
+
+	// Add should remain in t2
+	l.Add(1, 1)
+	if n := l.t1.Len(); n != 0 {
+		t.Fatalf("bad: %d", n)
+	}
+	if n := l.t2.Len(); n != 1 {
+		t.Fatalf("bad: %d", n)
+	}
+}
+
+func TestARC_Adaptive(t *testing.T) {
+	l, err := NewARC(4)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Fill t1
+	for i := 0; i < 4; i++ {
+		l.Add(i, i)
+	}
+	if n := l.t1.Len(); n != 4 {
+		t.Fatalf("bad: %d", n)
+	}
+
+	// Move to t2
+	l.Get(0)
+	l.Get(1)
+	if n := l.t2.Len(); n != 2 {
+		t.Fatalf("bad: %d", n)
+	}
+
+	// Evict from t1
 	l.Add(4, 4)
+	if n := l.b1.Len(); n != 1 {
+		t.Fatalf("bad: %d", n)
+	}
+
+	// Current state
+	// t1 : (MRU) [4, 3] (LRU)
+	// t2 : (MRU) [1, 0] (LRU)
+	// b1 : (MRU) [2] (LRU)
+	// b2 : (MRU) [] (LRU)
+
+	// Add 2, should cause hit on b1
+	l.Add(2, 2)
+	if n := l.b1.Len(); n != 1 {
+		t.Fatalf("bad: %d", n)
+	}
+	if l.p != 1 {
+		t.Fatalf("bad: %d", l.p)
+	}
+	if n := l.t2.Len(); n != 3 {
+		t.Fatalf("bad: %d", n)
+	}
+
+	// Current state
+	// t1 : (MRU) [4] (LRU)
+	// t2 : (MRU) [2, 1, 0] (LRU)
+	// b1 : (MRU) [3] (LRU)
+	// b2 : (MRU) [] (LRU)
+
+	// Add 4, should migrate to t2
+	l.Add(4, 4)
+	if n := l.t1.Len(); n != 0 {
+		t.Fatalf("bad: %d", n)
+	}
+	if n := l.t2.Len(); n != 4 {
+		t.Fatalf("bad: %d", n)
+	}
+
+	// Current state
+	// t1 : (MRU) [] (LRU)
+	// t2 : (MRU) [4, 2, 1, 0] (LRU)
+	// b1 : (MRU) [3] (LRU)
+	// b2 : (MRU) [] (LRU)
+
+	// Add 4, should evict to b2
 	l.Add(5, 5)
-	if n := l.recent.Len(); n != 4 {
+	if n := l.t1.Len(); n != 1 {
 		t.Fatalf("bad: %d", n)
 	}
-	if n := l.recentEvict.Len(); n != 1 {
+	if n := l.t2.Len(); n != 3 {
 		t.Fatalf("bad: %d", n)
 	}
-	if n := l.frequent.Len(); n != 0 {
-		t.Fatalf("bad: %d", n)
-	}
-
-	// Pull in the recently evicted
-	l.Add(1, 1)
-	if n := l.recent.Len(); n != 3 {
-		t.Fatalf("bad: %d", n)
-	}
-	if n := l.recentEvict.Len(); n != 1 {
-		t.Fatalf("bad: %d", n)
-	}
-	if n := l.frequent.Len(); n != 1 {
+	if n := l.b2.Len(); n != 1 {
 		t.Fatalf("bad: %d", n)
 	}
 
-	// Add 6, should cause another recent evict
-	l.Add(6, 6)
-	if n := l.recent.Len(); n != 3 {
+	// Current state
+	// t1 : (MRU) [5] (LRU)
+	// t2 : (MRU) [4, 2, 1] (LRU)
+	// b1 : (MRU) [3] (LRU)
+	// b2 : (MRU) [0] (LRU)
+
+	// Add 0, should decrease p
+	l.Add(0, 0)
+	if n := l.t1.Len(); n != 0 {
 		t.Fatalf("bad: %d", n)
 	}
-	if n := l.recentEvict.Len(); n != 2 {
+	if n := l.t2.Len(); n != 4 {
 		t.Fatalf("bad: %d", n)
 	}
-	if n := l.frequent.Len(); n != 1 {
+	if n := l.b1.Len(); n != 2 {
 		t.Fatalf("bad: %d", n)
 	}
+	if n := l.b2.Len(); n != 0 {
+		t.Fatalf("bad: %d", n)
+	}
+	if l.p != 0 {
+		t.Fatalf("bad: %d", l.p)
+	}
+
+	// Current state
+	// t1 : (MRU) [] (LRU)
+	// t2 : (MRU) [0, 4, 2, 1] (LRU)
+	// b1 : (MRU) [5, 3] (LRU)
+	// b2 : (MRU) [0] (LRU)
 }
 
-func Test2Q(t *testing.T) {
-	l, err := New2Q(128)
+func TestARC(t *testing.T) {
+	l, err := NewARC(128)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -268,8 +339,8 @@ func Test2Q(t *testing.T) {
 }
 
 // Test that Contains doesn't update recent-ness
-func Test2Q_Contains(t *testing.T) {
-	l, err := New2Q(2)
+func TestARC_Contains(t *testing.T) {
+	l, err := NewARC(2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -287,8 +358,8 @@ func Test2Q_Contains(t *testing.T) {
 }
 
 // Test that Peek doesn't update recent-ness
-func Test2Q_Peek(t *testing.T) {
-	l, err := New2Q(2)
+func TestARC_Peek(t *testing.T) {
+	l, err := NewARC(2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

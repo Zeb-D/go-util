@@ -1,257 +1,456 @@
-package cache
+package gcache
 
 import (
-	"sync"
-
-	"github.com/Zeb-D/go-util/cache/simple"
+	"container/list"
+	"time"
 )
 
-// ARCCache is a thread-safe fixed size Adaptive Replacement Cache (ARC).
-// ARC is an enhancement over the standard LRU cache in that tracks both
-// frequency and recency of use. This avoids a burst in access to new
-// entries from evicting the frequently used older entries. It adds some
-// additional tracking overhead to a standard LRU cache, computationally
-// it is roughly 2x the cost, and the extra memory overhead is linear
-// with the size of the cache. ARC has been patented by IBM, but is
-// similar to the TwoQueueCache (2Q) which requires setting parameters.
-type ARCCache struct {
-	size int // Size is the total capacity of the cache
-	p    int // P is the dynamic preference towards T1 or T2
+// ARC Constantly balances between LRU and LFU, to improve the combined result.
+type ARC struct {
+	baseCache
+	items map[interface{}]*arcItem
 
-	t1 simple.LRUCache // T1 is the LRU for recently accessed items
-	b1 simple.LRUCache // B1 is the LRU for evictions from t1
-
-	t2 simple.LRUCache // T2 is the LRU for frequently accessed items
-	b2 simple.LRUCache // B2 is the LRU for evictions from t2
-
-	lock sync.RWMutex
+	part int
+	t1   *arcList
+	t2   *arcList
+	b1   *arcList
+	b2   *arcList
 }
 
-// NewARC creates an ARC of the given size
-func NewARC(size int) (*ARCCache, error) {
-	// Create the sub LRUs
-	b1, err := simple.NewLRU(size, nil)
-	if err != nil {
-		return nil, err
-	}
-	b2, err := simple.NewLRU(size, nil)
-	if err != nil {
-		return nil, err
-	}
-	t1, err := simple.NewLRU(size, nil)
-	if err != nil {
-		return nil, err
-	}
-	t2, err := simple.NewLRU(size, nil)
-	if err != nil {
-		return nil, err
-	}
+func newARC(cb *CacheBuilder) *ARC {
+	c := &ARC{}
+	buildCache(&c.baseCache, cb)
 
-	// Initialize the ARC
-	c := &ARCCache{
-		size: size,
-		p:    0,
-		t1:   t1,
-		b1:   b1,
-		t2:   t2,
-		b2:   b2,
-	}
-	return c, nil
+	c.init()
+	c.loadGroup.cache = c
+	return c
 }
 
-// Get looks up a key's value from the cache.
-func (c *ARCCache) Get(key interface{}) (value interface{}, ok bool) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	// If the value is contained in T1 (recent), then
-	// promote it to T2 (frequent)
-	if val, ok := c.t1.Peek(key); ok {
-		c.t1.Remove(key)
-		c.t2.Add(key, val)
-		return val, ok
-	}
-
-	// Check if the value is contained in T2 (frequent)
-	if val, ok := c.t2.Get(key); ok {
-		return val, ok
-	}
-
-	// No hit
-	return nil, false
+func (c *ARC) init() {
+	c.items = make(map[interface{}]*arcItem)
+	c.t1 = newARCList()
+	c.t2 = newARCList()
+	c.b1 = newARCList()
+	c.b2 = newARCList()
 }
 
-// Add adds a value to the cache.
-func (c *ARCCache) Add(key, value interface{}) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	// Check if the value is contained in T1 (recent), and potentially
-	// promote it to frequent T2
-	if c.t1.Contains(key) {
-		c.t1.Remove(key)
-		c.t2.Add(key, value)
+func (c *ARC) replace(key interface{}) {
+	if !c.isCacheFull() {
 		return
 	}
-
-	// Check if the value is already in T2 (frequent) and update it
-	if c.t2.Contains(key) {
-		c.t2.Add(key, value)
-		return
+	var old interface{}
+	if c.t1.Len() > 0 && ((c.b2.Has(key) && c.t1.Len() == c.part) || (c.t1.Len() > c.part)) {
+		old = c.t1.RemoveTail()
+		c.b1.PushFront(old)
+	} else if c.t2.Len() > 0 {
+		old = c.t2.RemoveTail()
+		c.b2.PushFront(old)
+	} else {
+		old = c.t1.RemoveTail()
+		c.b1.PushFront(old)
 	}
-
-	// Check if this value was recently evicted as part of the
-	// recently used list
-	if c.b1.Contains(key) {
-		// T1 set is too small, increase P appropriately
-		delta := 1
-		b1Len := c.b1.Len()
-		b2Len := c.b2.Len()
-		if b2Len > b1Len {
-			delta = b2Len / b1Len
+	item, ok := c.items[old]
+	if ok {
+		delete(c.items, old)
+		if c.evictedFunc != nil {
+			c.evictedFunc(item.key, item.value)
 		}
-		if c.p+delta >= c.size {
-			c.p = c.size
+	}
+}
+
+func (c *ARC) Set(key, value interface{}) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	_, err := c.set(key, value)
+	return err
+}
+
+// SetWithExpire a new key-value pair with an expiration time
+func (c *ARC) SetWithExpire(key, value interface{}, expiration time.Duration) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	item, err := c.set(key, value)
+	if err != nil {
+		return err
+	}
+
+	t := c.clock.Now().Add(expiration)
+	item.(*arcItem).expiration = &t
+	return nil
+}
+
+func (c *ARC) set(key, value interface{}) (interface{}, error) {
+	var err error
+	if c.serializeFunc != nil {
+		value, err = c.serializeFunc(key, value)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	item, ok := c.items[key]
+	if ok {
+		item.value = value
+	} else {
+		item = &arcItem{
+			clock: c.clock,
+			key:   key,
+			value: value,
+		}
+		c.items[key] = item
+	}
+
+	if c.expiration != nil {
+		t := c.clock.Now().Add(*c.expiration)
+		item.expiration = &t
+	}
+
+	defer func() {
+		if c.addedFunc != nil {
+			c.addedFunc(key, value)
+		}
+	}()
+
+	if c.t1.Has(key) || c.t2.Has(key) {
+		return item, nil
+	}
+
+	if elt := c.b1.Lookup(key); elt != nil {
+		c.setPart(minInt(c.size, c.part+maxInt(c.b2.Len()/c.b1.Len(), 1)))
+		c.replace(key)
+		c.b1.Remove(key, elt)
+		c.t2.PushFront(key)
+		return item, nil
+	}
+
+	if elt := c.b2.Lookup(key); elt != nil {
+		c.setPart(maxInt(0, c.part-maxInt(c.b1.Len()/c.b2.Len(), 1)))
+		c.replace(key)
+		c.b2.Remove(key, elt)
+		c.t2.PushFront(key)
+		return item, nil
+	}
+
+	if c.isCacheFull() && c.t1.Len()+c.b1.Len() == c.size {
+		if c.t1.Len() < c.size {
+			c.b1.RemoveTail()
+			c.replace(key)
 		} else {
-			c.p += delta
-		}
-
-		// Potentially need to make room in the cache
-		if c.t1.Len()+c.t2.Len() >= c.size {
-			c.replace(false)
-		}
-
-		// Remove from B1
-		c.b1.Remove(key)
-
-		// Add the key to the frequently used list
-		c.t2.Add(key, value)
-		return
-	}
-
-	// Check if this value was recently evicted as part of the
-	// frequently used list
-	if c.b2.Contains(key) {
-		// T2 set is too small, decrease P appropriately
-		delta := 1
-		b1Len := c.b1.Len()
-		b2Len := c.b2.Len()
-		if b1Len > b2Len {
-			delta = b1Len / b2Len
-		}
-		if delta >= c.p {
-			c.p = 0
-		} else {
-			c.p -= delta
-		}
-
-		// Potentially need to make room in the cache
-		if c.t1.Len()+c.t2.Len() >= c.size {
-			c.replace(true)
-		}
-
-		// Remove from B2
-		c.b2.Remove(key)
-
-		// Add the key to the frequently used list
-		c.t2.Add(key, value)
-		return
-	}
-
-	// Potentially need to make room in the cache
-	if c.t1.Len()+c.t2.Len() >= c.size {
-		c.replace(false)
-	}
-
-	// Keep the size of the ghost buffers trim
-	if c.b1.Len() > c.size-c.p {
-		c.b1.RemoveOldest()
-	}
-	if c.b2.Len() > c.p {
-		c.b2.RemoveOldest()
-	}
-
-	// Add to the recently seen list
-	c.t1.Add(key, value)
-	return
-}
-
-// replace is used to adaptively evict from either T1 or T2
-// based on the current learned value of P
-func (c *ARCCache) replace(b2ContainsKey bool) {
-	t1Len := c.t1.Len()
-	if t1Len > 0 && (t1Len > c.p || (t1Len == c.p && b2ContainsKey)) {
-		k, _, ok := c.t1.RemoveOldest()
-		if ok {
-			c.b1.Add(k, nil)
+			pop := c.t1.RemoveTail()
+			item, ok := c.items[pop]
+			if ok {
+				delete(c.items, pop)
+				if c.evictedFunc != nil {
+					c.evictedFunc(item.key, item.value)
+				}
+			}
 		}
 	} else {
-		k, _, ok := c.t2.RemoveOldest()
-		if ok {
-			c.b2.Add(k, nil)
+		total := c.t1.Len() + c.b1.Len() + c.t2.Len() + c.b2.Len()
+		if total >= c.size {
+			if total == (2 * c.size) {
+				if c.b2.Len() > 0 {
+					c.b2.RemoveTail()
+				} else {
+					c.b1.RemoveTail()
+				}
+			}
+			c.replace(key)
 		}
 	}
+	c.t1.PushFront(key)
+	return item, nil
 }
 
-// Len returns the number of cached entries
-func (c *ARCCache) Len() int {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-	return c.t1.Len() + c.t2.Len()
+// Get a value from cache pool using key if it exists. If not exists and it has LoaderFunc, it will generate the value using you have specified LoaderFunc method returns value.
+func (c *ARC) Get(key interface{}) (interface{}, error) {
+	v, err := c.get(key, false)
+	if err == KeyNotFoundError {
+		return c.getWithLoader(key, true)
+	}
+	return v, err
 }
 
-// Keys returns all the cached keys
-func (c *ARCCache) Keys() []interface{} {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-	k1 := c.t1.Keys()
-	k2 := c.t2.Keys()
-	return append(k1, k2...)
+// GetIFPresent gets a value from cache pool using key if it exists.
+// If it does not exists key, returns KeyNotFoundError.
+// And send a request which refresh value for specified key if cache object has LoaderFunc.
+func (c *ARC) GetIFPresent(key interface{}) (interface{}, error) {
+	v, err := c.get(key, false)
+	if err == KeyNotFoundError {
+		return c.getWithLoader(key, false)
+	}
+	return v, err
 }
 
-// Remove is used to purge a key from the cache
-func (c *ARCCache) Remove(key interface{}) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	if c.t1.Remove(key) {
+func (c *ARC) get(key interface{}, onLoad bool) (interface{}, error) {
+	v, err := c.getValue(key, onLoad)
+	if err != nil {
+		return nil, err
+	}
+	if c.deserializeFunc != nil {
+		return c.deserializeFunc(key, v)
+	}
+	return v, nil
+}
+
+func (c *ARC) getValue(key interface{}, onLoad bool) (interface{}, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if elt := c.t1.Lookup(key); elt != nil {
+		c.t1.Remove(key, elt)
+		item := c.items[key]
+		if !item.IsExpired(nil) {
+			c.t2.PushFront(key)
+			if !onLoad {
+				c.stats.IncrHitCount()
+			}
+			return item.value, nil
+		} else {
+			delete(c.items, key)
+			c.b1.PushFront(key)
+			if c.evictedFunc != nil {
+				c.evictedFunc(item.key, item.value)
+			}
+		}
+	}
+	if elt := c.t2.Lookup(key); elt != nil {
+		item := c.items[key]
+		if !item.IsExpired(nil) {
+			c.t2.MoveToFront(elt)
+			if !onLoad {
+				c.stats.IncrHitCount()
+			}
+			return item.value, nil
+		} else {
+			delete(c.items, key)
+			c.t2.Remove(key, elt)
+			c.b2.PushFront(key)
+			if c.evictedFunc != nil {
+				c.evictedFunc(item.key, item.value)
+			}
+		}
+	}
+
+	if !onLoad {
+		c.stats.IncrMissCount()
+	}
+	return nil, KeyNotFoundError
+}
+
+func (c *ARC) getWithLoader(key interface{}, isWait bool) (interface{}, error) {
+	if c.loaderExpireFunc == nil {
+		return nil, KeyNotFoundError
+	}
+	value, _, err := c.load(key, func(v interface{}, expiration *time.Duration, e error) (interface{}, error) {
+		if e != nil {
+			return nil, e
+		}
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		item, err := c.set(key, v)
+		if err != nil {
+			return nil, err
+		}
+		if expiration != nil {
+			t := c.clock.Now().Add(*expiration)
+			item.(*arcItem).expiration = &t
+		}
+		return v, nil
+	}, isWait)
+	if err != nil {
+		return nil, err
+	}
+	return value, nil
+}
+
+// Has checks if key exists in cache
+func (c *ARC) Has(key interface{}) bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	now := time.Now()
+	return c.has(key, &now)
+}
+
+func (c *ARC) has(key interface{}, now *time.Time) bool {
+	item, ok := c.items[key]
+	if !ok {
+		return false
+	}
+	return !item.IsExpired(now)
+}
+
+// Remove removes the provided key from the cache.
+func (c *ARC) Remove(key interface{}) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.remove(key)
+}
+
+func (c *ARC) remove(key interface{}) bool {
+	if elt := c.t1.Lookup(key); elt != nil {
+		c.t1.Remove(key, elt)
+		item := c.items[key]
+		delete(c.items, key)
+		c.b1.PushFront(key)
+		if c.evictedFunc != nil {
+			c.evictedFunc(key, item.value)
+		}
+		return true
+	}
+
+	if elt := c.t2.Lookup(key); elt != nil {
+		c.t2.Remove(key, elt)
+		item := c.items[key]
+		delete(c.items, key)
+		c.b2.PushFront(key)
+		if c.evictedFunc != nil {
+			c.evictedFunc(key, item.value)
+		}
+		return true
+	}
+
+	return false
+}
+
+// GetALL returns all key-value pairs in the cache.
+func (c *ARC) GetALL(checkExpired bool) map[interface{}]interface{} {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	items := make(map[interface{}]interface{}, len(c.items))
+	now := time.Now()
+	for k, item := range c.items {
+		if !checkExpired || c.has(k, &now) {
+			items[k] = item.value
+		}
+	}
+	return items
+}
+
+// Keys returns a slice of the keys in the cache.
+func (c *ARC) Keys(checkExpired bool) []interface{} {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	keys := make([]interface{}, 0, len(c.items))
+	now := time.Now()
+	for k := range c.items {
+		if !checkExpired || c.has(k, &now) {
+			keys = append(keys, k)
+		}
+	}
+	return keys
+}
+
+// Len returns the number of items in the cache.
+func (c *ARC) Len(checkExpired bool) int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if !checkExpired {
+		return len(c.items)
+	}
+	var length int
+	now := time.Now()
+	for k := range c.items {
+		if c.has(k, &now) {
+			length++
+		}
+	}
+	return length
+}
+
+// Purge is used to completely clear the cache
+func (c *ARC) Purge() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.purgeVisitorFunc != nil {
+		for _, item := range c.items {
+			c.purgeVisitorFunc(item.key, item.value)
+		}
+	}
+
+	c.init()
+}
+
+func (c *ARC) setPart(p int) {
+	if c.isCacheFull() {
+		c.part = p
+	}
+}
+
+func (c *ARC) isCacheFull() bool {
+	return (c.t1.Len() + c.t2.Len()) == c.size
+}
+
+// IsExpired returns boolean value whether this item is expired or not.
+func (it *arcItem) IsExpired(now *time.Time) bool {
+	if it.expiration == nil {
+		return false
+	}
+	if now == nil {
+		t := it.clock.Now()
+		now = &t
+	}
+	return it.expiration.Before(*now)
+}
+
+type arcList struct {
+	l    *list.List
+	keys map[interface{}]*list.Element
+}
+
+type arcItem struct {
+	clock      Clock
+	key        interface{}
+	value      interface{}
+	expiration *time.Time
+}
+
+func newARCList() *arcList {
+	return &arcList{
+		l:    list.New(),
+		keys: make(map[interface{}]*list.Element),
+	}
+}
+
+func (al *arcList) Has(key interface{}) bool {
+	_, ok := al.keys[key]
+	return ok
+}
+
+func (al *arcList) Lookup(key interface{}) *list.Element {
+	elt := al.keys[key]
+	return elt
+}
+
+func (al *arcList) MoveToFront(elt *list.Element) {
+	al.l.MoveToFront(elt)
+}
+
+func (al *arcList) PushFront(key interface{}) {
+	if elt, ok := al.keys[key]; ok {
+		al.l.MoveToFront(elt)
 		return
 	}
-	if c.t2.Remove(key) {
-		return
-	}
-	if c.b1.Remove(key) {
-		return
-	}
-	if c.b2.Remove(key) {
-		return
-	}
+	elt := al.l.PushFront(key)
+	al.keys[key] = elt
 }
 
-// Purge is used to clear the cache
-func (c *ARCCache) Purge() {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	c.t1.Purge()
-	c.t2.Purge()
-	c.b1.Purge()
-	c.b2.Purge()
+func (al *arcList) Remove(key interface{}, elt *list.Element) {
+	delete(al.keys, key)
+	al.l.Remove(elt)
 }
 
-// Contains is used to check if the cache contains a key
-// without updating recency or frequency.
-func (c *ARCCache) Contains(key interface{}) bool {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-	return c.t1.Contains(key) || c.t2.Contains(key)
+func (al *arcList) RemoveTail() interface{} {
+	elt := al.l.Back()
+	al.l.Remove(elt)
+
+	key := elt.Value
+	delete(al.keys, key)
+
+	return key
 }
 
-// Peek is used to inspect the cache value of a key
-// without updating recency or frequency.
-func (c *ARCCache) Peek(key interface{}) (value interface{}, ok bool) {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-	if val, ok := c.t1.Peek(key); ok {
-		return val, ok
-	}
-	return c.t2.Peek(key)
+func (al *arcList) Len() int {
+	return al.l.Len()
 }

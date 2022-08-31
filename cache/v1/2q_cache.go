@@ -1,10 +1,9 @@
-package cache
+package v1
 
 import (
 	"fmt"
-	"sync"
-
 	"github.com/Zeb-D/go-util/cache/simple"
+	"sync"
 )
 
 const (
