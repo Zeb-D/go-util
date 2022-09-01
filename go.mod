@@ -34,7 +34,7 @@ require (
 	github.com/dubbogo/getty v1.3.3 // indirect
 	github.com/dubbogo/go-zookeeper v1.0.0 // indirect
 	github.com/dubbogo/gost v1.5.2 // indirect
-	github.com/gogo/protobuf v1.3.1 // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20191227052852-215e87163ea7 // indirect
 	github.com/golang/mock v1.3.1 // indirect
 	github.com/golang/protobuf v1.3.2 // indirect
@@ -60,7 +60,6 @@ require (
 	github.com/prometheus/procfs v0.0.8 // indirect
 	github.com/satori/go.uuid v1.2.0 // indirect
 	go.uber.org/multierr v1.5.0 // indirect
-	golang.org/x/crypto v0.0.0-20200221231518-2aa609cf4a9d // indirect
 	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
 	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
 	golang.org/x/text v0.3.7 // indirect

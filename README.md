@@ -20,10 +20,8 @@
 > - interact --golang实操入门
 > - log --封装了zap.Logger 日志操作，支持日志切割
 > - mq --简化消息队列中间件操作
-> - redis --简化redis封装
 > - struct -- [data struct,others contain  algorithm base on it](./struct/README.md)
 > - testdata --测试数据
-> - todo --在实验操作中，将要整理成目录
 
 欢迎大家使用，本人增加操作也会向前兼容，请放心使用
 
