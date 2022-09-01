@@ -29,7 +29,7 @@ func TestSugarLog(t *testing.T) {
 func TestZapInfoLog(t *testing.T) {
 	SetGlobalLog("util", false, WithHooksOption(hookTest{}))
 	println("zapInfoLog")
-	zapInfoLog("info", zap.String("version", "v1"))
+	zapInfoLog("info", zap.String("version", "lru"))
 	Info("info-test", String("myName", "go-util"))
 	Error("error-test", ErrorField(nil))
 	Error("any-test", Any("a", nil))

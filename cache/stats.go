@@ -1,4 +1,4 @@
-package gcache
+package cache
 
 import (
 	"sync/atomic"
@@ -17,12 +17,12 @@ type stats struct {
 	missCount uint64
 }
 
-// increment hit count
+// IncrHitCount increment hit count
 func (st *stats) IncrHitCount() uint64 {
 	return atomic.AddUint64(&st.hitCount, 1)
 }
 
-// increment miss count
+// IncrMissCount increment miss count
 func (st *stats) IncrMissCount() uint64 {
 	return atomic.AddUint64(&st.missCount, 1)
 }

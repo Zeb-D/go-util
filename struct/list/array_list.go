@@ -37,7 +37,7 @@ func (arrayList *ArrayList) IsEmpty() bool {
 // 在第 index 个位置插入一个新元素 e
 func (arrayList *ArrayList) Add(index int, e interface{}) error {
 	if index < 0 || index > arrayList.size {
-		return errors.New("Add failed. Require index >= 0 and index <= size.")
+		return errors.New("Set failed. Require index >= 0 and index <= size.")
 	}
 
 	if arrayList.size == len(arrayList.data) {

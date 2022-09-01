@@ -1,21 +1,23 @@
-package gcache
+package cache
 
 import (
 	"time"
 )
 
+var _ Cache = new(SimpleCache)
+
 // SimpleCache has no clear priority for evict cache. It depends on key-value map order.
 type SimpleCache struct {
-	baseCache
+	BaseCache
 	items map[interface{}]*simpleItem
 }
 
-func newSimpleCache(cb *CacheBuilder) *SimpleCache {
+func newSimpleCache(cb *Builder) *SimpleCache {
 	c := &SimpleCache{}
-	buildCache(&c.baseCache, cb)
+	buildCache(&c.BaseCache, cb)
 
 	c.init()
-	c.loadGroup.cache = c
+	c.group.cache = c
 	return c
 }
 
@@ -35,7 +37,7 @@ func (c *SimpleCache) Set(key, value interface{}) error {
 	return err
 }
 
-// SetWithExpire a new key-value pair with an expiration time
+// Set a new key-value pair with an expiration time
 func (c *SimpleCache) SetWithExpire(key, value interface{}, expiration time.Duration) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -87,23 +89,30 @@ func (c *SimpleCache) set(key, value interface{}) (interface{}, error) {
 }
 
 // Get a value from cache pool using key if it exists.
-// If it does not exists key and has LoaderFunc,
+// If it dose not exists key and has LoaderFunc,
 // generate a value using `LoaderFunc` method returns value.
 func (c *SimpleCache) Get(key interface{}) (interface{}, error) {
+	return c.GetOrLoad(key, nil)
+}
+
+// GetOrLoad a value from cache pool using key if it exists.
+// If it dose not exists key,
+// generate a value using `LoaderFunc` method returns value.
+func (c *SimpleCache) GetOrLoad(key interface{}, loader LoaderExpireFunc) (interface{}, error) {
 	v, err := c.get(key, false)
 	if err == KeyNotFoundError {
-		return c.getWithLoader(key, true)
+		return c.getWithLoader(key, loader, true)
 	}
 	return v, err
 }
 
-// GetIFPresent gets a value from cache pool using key if it exists.
-// If it does not exists key, returns KeyNotFoundError.
+// GetIfPresent gets a value from cache pool using key if it exists.
+// If it dose not exists key, returns KeyNotFoundError.
 // And send a request which refresh value for specified key if cache object has LoaderFunc.
-func (c *SimpleCache) GetIFPresent(key interface{}) (interface{}, error) {
+func (c *SimpleCache) GetIfPresent(key interface{}) (interface{}, error) {
 	v, err := c.get(key, false)
 	if err == KeyNotFoundError {
-		return c.getWithLoader(key, false)
+		return c.getWithLoader(key, nil, false)
 	}
 	return v, nil
 }
@@ -140,30 +149,33 @@ func (c *SimpleCache) getValue(key interface{}, onLoad bool) (interface{}, error
 	return nil, KeyNotFoundError
 }
 
-func (c *SimpleCache) getWithLoader(key interface{}, isWait bool) (interface{}, error) {
-	if c.loaderExpireFunc == nil {
+func (c *SimpleCache) getWithLoader(key interface{}, exLoader LoaderExpireFunc, isWait bool) (interface{}, error) {
+	if exLoader == nil && c.loaderExpireFunc == nil {
 		return nil, KeyNotFoundError
 	}
-	value, _, err := c.load(key, func(v interface{}, expiration *time.Duration, e error) (interface{}, error) {
+	if exLoader == nil {
+		exLoader = c.loaderExpireFunc
+	}
+	exp, _, err := c.load(key, exLoader, func(exval Expirable, e error) (interface{}, error) {
 		if e != nil {
 			return nil, e
 		}
 		c.mu.Lock()
 		defer c.mu.Unlock()
-		item, err := c.set(key, v)
+		item, err := c.set(key, exval.Value)
 		if err != nil {
 			return nil, err
 		}
-		if expiration != nil {
-			t := c.clock.Now().Add(*expiration)
+		if exval.Expire > 0 {
+			t := c.clock.Now().Add(exval.Expire)
 			item.(*simpleItem).expiration = &t
 		}
-		return v, nil
+		return exval.Value, nil
 	}, isWait)
 	if err != nil {
 		return nil, err
 	}
-	return value, nil
+	return exp, nil
 }
 
 func (c *SimpleCache) evict(count int) {
@@ -229,8 +241,8 @@ func (c *SimpleCache) keys() []interface{} {
 	return keys
 }
 
-// GetALL returns all key-value pairs in the cache.
-func (c *SimpleCache) GetALL(checkExpired bool) map[interface{}]interface{} {
+// GetAll returns all key-value pairs in the cache.
+func (c *SimpleCache) GetAll(checkExpired bool) map[interface{}]interface{} {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	items := make(map[interface{}]interface{}, len(c.items))

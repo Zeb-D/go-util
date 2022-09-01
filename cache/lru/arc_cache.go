@@ -1,7 +1,7 @@
-package v1
+package lru
 
 import (
-	"github.com/Zeb-D/go-util/cache/simple"
+	simple2 "github.com/Zeb-D/go-util/cache/lru/simple"
 	"sync"
 )
 
@@ -17,11 +17,11 @@ type ARCCache struct {
 	size int // Size is the total capacity of the cache
 	p    int // P is the dynamic preference towards T1 or T2
 
-	t1 simple.LRUCache // T1 is the LRU for recently accessed items
-	b1 simple.LRUCache // B1 is the LRU for evictions from t1
+	t1 simple2.LRUCache // T1 is the LRU for recently accessed items
+	b1 simple2.LRUCache // B1 is the LRU for evictions from t1
 
-	t2 simple.LRUCache // T2 is the LRU for frequently accessed items
-	b2 simple.LRUCache // B2 is the LRU for evictions from t2
+	t2 simple2.LRUCache // T2 is the LRU for frequently accessed items
+	b2 simple2.LRUCache // B2 is the LRU for evictions from t2
 
 	lock sync.RWMutex
 }
@@ -29,19 +29,19 @@ type ARCCache struct {
 // NewARC creates an ARC of the given size
 func NewARC(size int) (*ARCCache, error) {
 	// Create the sub LRUs
-	b1, err := simple.NewLRU(size, nil)
+	b1, err := simple2.NewLRU(size, nil)
 	if err != nil {
 		return nil, err
 	}
-	b2, err := simple.NewLRU(size, nil)
+	b2, err := simple2.NewLRU(size, nil)
 	if err != nil {
 		return nil, err
 	}
-	t1, err := simple.NewLRU(size, nil)
+	t1, err := simple2.NewLRU(size, nil)
 	if err != nil {
 		return nil, err
 	}
-	t2, err := simple.NewLRU(size, nil)
+	t2, err := simple2.NewLRU(size, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (c *ARCCache) Get(key interface{}) (value interface{}, ok bool) {
 	// promote it to T2 (frequent)
 	if val, ok := c.t1.Peek(key); ok {
 		c.t1.Remove(key)
-		c.t2.Add(key, val)
+		c.t2.Set(key, val)
 		return val, ok
 	}
 
@@ -89,13 +89,13 @@ func (c *ARCCache) Add(key, value interface{}) {
 	// promote it to frequent T2
 	if c.t1.Contains(key) {
 		c.t1.Remove(key)
-		c.t2.Add(key, value)
+		c.t2.Set(key, value)
 		return
 	}
 
 	// Check if the value is already in T2 (frequent) and update it
 	if c.t2.Contains(key) {
-		c.t2.Add(key, value)
+		c.t2.Set(key, value)
 		return
 	}
 
@@ -123,8 +123,8 @@ func (c *ARCCache) Add(key, value interface{}) {
 		// Remove from B1
 		c.b1.Remove(key)
 
-		// Add the key to the frequently used list
-		c.t2.Add(key, value)
+		// Set the key to the frequently used list
+		c.t2.Set(key, value)
 		return
 	}
 
@@ -152,8 +152,8 @@ func (c *ARCCache) Add(key, value interface{}) {
 		// Remove from B2
 		c.b2.Remove(key)
 
-		// Add the key to the frequently used list
-		c.t2.Add(key, value)
+		// Set the key to the frequently used list
+		c.t2.Set(key, value)
 		return
 	}
 
@@ -170,8 +170,8 @@ func (c *ARCCache) Add(key, value interface{}) {
 		c.b2.RemoveOldest()
 	}
 
-	// Add to the recently seen list
-	c.t1.Add(key, value)
+	// Set to the recently seen list
+	c.t1.Set(key, value)
 	return
 }
 
@@ -182,12 +182,12 @@ func (c *ARCCache) replace(b2ContainsKey bool) {
 	if t1Len > 0 && (t1Len > c.p || (t1Len == c.p && b2ContainsKey)) {
 		k, _, ok := c.t1.RemoveOldest()
 		if ok {
-			c.b1.Add(k, nil)
+			c.b1.Set(k, nil)
 		}
 	} else {
 		k, _, ok := c.t2.RemoveOldest()
 		if ok {
-			c.b2.Add(k, nil)
+			c.b2.Set(k, nil)
 		}
 	}
 }

@@ -32,7 +32,7 @@ func TestRedisSScan(t *testing.T) {
 	Client.Del(key)
 	v, _ := json.Marshal(config)
 	total := Client.SAdd(key, v, "2211", "222", "33322").Val()
-	fmt.Printf("Zset Add key:%s,success:%d \n", key, total)
+	fmt.Printf("Zset Set key:%s,success:%d \n", key, total)
 	scanCmd := Client.SScan(key, 0, "*", 2) //每次获取2个
 	fmt.Printf("Zset Get key:%s,scanCmd:%s \n", key, scanCmd)
 	iterator := scanCmd.Iterator()

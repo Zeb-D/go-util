@@ -1,8 +1,8 @@
-package v1
+package lru
 
 import (
 	"fmt"
-	"github.com/Zeb-D/go-util/cache/simple"
+	simple2 "github.com/Zeb-D/go-util/cache/lru/simple"
 	"sync"
 )
 
@@ -29,9 +29,9 @@ type TwoQueueCache struct {
 	size       int
 	recentSize int
 
-	recent      simple.LRUCache
-	frequent    simple.LRUCache
-	recentEvict simple.LRUCache
+	recent      simple2.LRUCache
+	frequent    simple2.LRUCache
+	recentEvict simple2.LRUCache
 	lock        sync.RWMutex
 }
 
@@ -59,15 +59,15 @@ func New2QParams(size int, recentRatio float64, ghostRatio float64) (*TwoQueueCa
 	evictSize := int(float64(size) * ghostRatio)
 
 	// Allocate the LRUs
-	recent, err := simple.NewLRU(size, nil)
+	recent, err := simple2.NewLRU(size, nil)
 	if err != nil {
 		return nil, err
 	}
-	frequent, err := simple.NewLRU(size, nil)
+	frequent, err := simple2.NewLRU(size, nil)
 	if err != nil {
 		return nil, err
 	}
-	recentEvict, err := simple.NewLRU(evictSize, nil)
+	recentEvict, err := simple2.NewLRU(evictSize, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (c *TwoQueueCache) Get(key interface{}) (value interface{}, ok bool) {
 	// promote it to frequent
 	if val, ok := c.recent.Peek(key); ok {
 		c.recent.Remove(key)
-		c.frequent.Add(key, val)
+		c.frequent.Set(key, val)
 		return val, ok
 	}
 
@@ -113,7 +113,7 @@ func (c *TwoQueueCache) Add(key, value interface{}) {
 	// Check if the value is frequently used already,
 	// and just update the value
 	if c.frequent.Contains(key) {
-		c.frequent.Add(key, value)
+		c.frequent.Set(key, value)
 		return
 	}
 
@@ -121,7 +121,7 @@ func (c *TwoQueueCache) Add(key, value interface{}) {
 	// the value into the frequent list
 	if c.recent.Contains(key) {
 		c.recent.Remove(key)
-		c.frequent.Add(key, value)
+		c.frequent.Set(key, value)
 		return
 	}
 
@@ -130,13 +130,13 @@ func (c *TwoQueueCache) Add(key, value interface{}) {
 	if c.recentEvict.Contains(key) {
 		c.ensureSpace(true)
 		c.recentEvict.Remove(key)
-		c.frequent.Add(key, value)
+		c.frequent.Set(key, value)
 		return
 	}
 
-	// Add to the recently seen list
+	// Set to the recently seen list
 	c.ensureSpace(false)
-	c.recent.Add(key, value)
+	c.recent.Set(key, value)
 	return
 }
 
@@ -153,7 +153,7 @@ func (c *TwoQueueCache) ensureSpace(recentEvict bool) {
 	// the target, evict from there
 	if recentLen > 0 && (recentLen > c.recentSize || (recentLen == c.recentSize && !recentEvict)) {
 		k, _, _ := c.recent.RemoveOldest()
-		c.recentEvict.Add(k, nil)
+		c.recentEvict.Set(k, nil)
 		return
 	}
 

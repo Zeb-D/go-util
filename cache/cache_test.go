@@ -1,4 +1,4 @@
-package gcache
+package cache
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 
 func TestLoaderFunc(t *testing.T) {
 	size := 2
-	var testCaches = []*CacheBuilder{
+	var testCaches = []*Builder{
 		New(size).Simple(),
 		New(size).LRU(),
 		New(size).LFU(),
@@ -50,7 +50,7 @@ func TestLoaderFunc(t *testing.T) {
 
 func TestLoaderExpireFuncWithoutExpire(t *testing.T) {
 	size := 2
-	var testCaches = []*CacheBuilder{
+	var testCaches = []*Builder{
 		New(size).Simple(),
 		New(size).LRU(),
 		New(size).LFU(),
@@ -89,7 +89,7 @@ func TestLoaderExpireFuncWithoutExpire(t *testing.T) {
 
 func TestLoaderExpireFuncWithExpire(t *testing.T) {
 	size := 2
-	var testCaches = []*CacheBuilder{
+	var testCaches = []*Builder{
 		New(size).Simple(),
 		New(size).LRU(),
 		New(size).LFU(),
@@ -140,7 +140,7 @@ func TestLoaderPurgeVisitorFunc(t *testing.T) {
 	size := 7
 	tests := []struct {
 		name         string
-		cacheBuilder *CacheBuilder
+		cacheBuilder *Builder
 	}{
 		{
 			name:         "simple",

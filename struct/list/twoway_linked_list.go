@@ -32,7 +32,7 @@ func (l *TwoWayLinkedList) Size() int {
 
 func (l *TwoWayLinkedList) Add(index int, e interface{}) {
 	if index < 0 || index > l.size {
-		panic("Add failed. Index must >= 0 and <= size.")
+		panic("Set failed. Index must >= 0 and <= size.")
 	}
 
 	if index == 0 {

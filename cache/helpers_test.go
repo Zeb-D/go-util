@@ -1,4 +1,4 @@
-package gcache
+package cache
 
 import (
 	"fmt"
@@ -46,14 +46,14 @@ func testGetIFPresent(t *testing.T, evT string) {
 				}).
 			Build()
 
-	v, err := cache.GetIFPresent("key")
+	v, err := cache.GetIfPresent("key")
 	if err != KeyNotFoundError {
 		t.Errorf("err should not be %v", err)
 	}
 
 	time.Sleep(2 * time.Millisecond)
 
-	v, err = cache.GetIFPresent("key")
+	v, err = cache.GetIfPresent("key")
 	if err != nil {
 		t.Errorf("err should not be %v", err)
 	}
@@ -110,18 +110,18 @@ func testExpiredItems(t *testing.T, evT string) {
 			Build()
 
 	setItemsByRange(t, cache, 0, size)
-	checkItemsByRange(t, cache.Keys(true), cache.GetALL(true), cache.Len(true), 0, size)
+	checkItemsByRange(t, cache.Keys(true), cache.GetAll(true), cache.Len(true), 0, size)
 
 	time.Sleep(time.Millisecond)
 
-	checkItemsByRange(t, cache.Keys(false), cache.GetALL(false), cache.Len(false), 0, size)
+	checkItemsByRange(t, cache.Keys(false), cache.GetAll(false), cache.Len(false), 0, size)
 
 	if l := cache.Len(true); l != 0 {
-		t.Fatalf("GetALL should returns no items, but got length %v", l)
+		t.Fatalf("GetAll should returns no items, but got length %v", l)
 	}
 
 	cache.Set(1, 1)
-	m := cache.GetALL(true)
+	m := cache.GetAll(true)
 	if len(m) != 1 {
 		t.Fatalf("%v != %v", len(m), 1)
 	} else if l := cache.Len(true); l != 1 {

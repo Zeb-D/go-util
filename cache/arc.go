@@ -1,13 +1,15 @@
-package gcache
+package cache
 
 import (
 	"container/list"
 	"time"
 )
 
+var _ Cache = new(ARC)
+
 // ARC Constantly balances between LRU and LFU, to improve the combined result.
 type ARC struct {
-	baseCache
+	BaseCache
 	items map[interface{}]*arcItem
 
 	part int
@@ -17,12 +19,12 @@ type ARC struct {
 	b2   *arcList
 }
 
-func newARC(cb *CacheBuilder) *ARC {
+func newARC(cb *Builder) *ARC {
 	c := &ARC{}
-	buildCache(&c.baseCache, cb)
+	buildCache(&c.BaseCache, cb)
 
 	c.init()
-	c.loadGroup.cache = c
+	c.group.cache = c
 	return c
 }
 
@@ -65,7 +67,7 @@ func (c *ARC) Set(key, value interface{}) error {
 	return err
 }
 
-// SetWithExpire a new key-value pair with an expiration time
+// SetWithExpire Set a new key-value pair with an expiration time
 func (c *ARC) SetWithExpire(key, value interface{}, expiration time.Duration) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -164,20 +166,26 @@ func (c *ARC) set(key, value interface{}) (interface{}, error) {
 
 // Get a value from cache pool using key if it exists. If not exists and it has LoaderFunc, it will generate the value using you have specified LoaderFunc method returns value.
 func (c *ARC) Get(key interface{}) (interface{}, error) {
+	return c.GetOrLoad(key, nil)
+}
+
+// GetOrLoad a value from cache pool using key if it exists.
+// If not exists, it will generate the value using given specified LoaderFunc method returns value.
+func (c *ARC) GetOrLoad(key interface{}, loader LoaderExpireFunc) (interface{}, error) {
 	v, err := c.get(key, false)
 	if err == KeyNotFoundError {
-		return c.getWithLoader(key, true)
+		return c.getWithLoader(key, loader, true)
 	}
 	return v, err
 }
 
-// GetIFPresent gets a value from cache pool using key if it exists.
-// If it does not exists key, returns KeyNotFoundError.
+// GetIfPresent gets a value from cache pool using key if it exists.
+// If it dose not exists key, returns KeyNotFoundError.
 // And send a request which refresh value for specified key if cache object has LoaderFunc.
-func (c *ARC) GetIFPresent(key interface{}) (interface{}, error) {
+func (c *ARC) GetIfPresent(key interface{}) (interface{}, error) {
 	v, err := c.get(key, false)
 	if err == KeyNotFoundError {
-		return c.getWithLoader(key, false)
+		return c.getWithLoader(key, nil, false)
 	}
 	return v, err
 }
@@ -237,30 +245,33 @@ func (c *ARC) getValue(key interface{}, onLoad bool) (interface{}, error) {
 	return nil, KeyNotFoundError
 }
 
-func (c *ARC) getWithLoader(key interface{}, isWait bool) (interface{}, error) {
-	if c.loaderExpireFunc == nil {
+func (c *ARC) getWithLoader(key interface{}, exLoader LoaderExpireFunc, isWait bool) (interface{}, error) {
+	if exLoader == nil && c.loaderExpireFunc == nil {
 		return nil, KeyNotFoundError
 	}
-	value, _, err := c.load(key, func(v interface{}, expiration *time.Duration, e error) (interface{}, error) {
+	if exLoader == nil {
+		exLoader = c.loaderExpireFunc
+	}
+	exp, _, err := c.load(key, exLoader, func(exval Expirable, e error) (interface{}, error) {
 		if e != nil {
 			return nil, e
 		}
 		c.mu.Lock()
 		defer c.mu.Unlock()
-		item, err := c.set(key, v)
+		item, err := c.set(key, exval.Value)
 		if err != nil {
 			return nil, err
 		}
-		if expiration != nil {
-			t := c.clock.Now().Add(*expiration)
+		if exval.Expire > 0 {
+			t := c.clock.Now().Add(exval.Expire)
 			item.(*arcItem).expiration = &t
 		}
-		return v, nil
+		return exval.Value, nil
 	}, isWait)
 	if err != nil {
 		return nil, err
 	}
-	return value, nil
+	return exp, nil
 }
 
 // Has checks if key exists in cache
@@ -313,8 +324,8 @@ func (c *ARC) remove(key interface{}) bool {
 	return false
 }
 
-// GetALL returns all key-value pairs in the cache.
-func (c *ARC) GetALL(checkExpired bool) map[interface{}]interface{} {
+// GetAll returns all key-value pairs in the cache.
+func (c *ARC) GetAll(checkExpired bool) map[interface{}]interface{} {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	items := make(map[interface{}]interface{}, len(c.items))

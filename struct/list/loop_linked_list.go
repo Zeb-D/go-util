@@ -32,7 +32,7 @@ func (l *LoopLinkedList) Size() int {
 
 func (l *LoopLinkedList) Add(index int, e interface{}) {
 	if index < 0 || index > l.size {
-		panic("Add failed. Index must >= 0 and <= size.")
+		panic("Set failed. Index must >= 0 and <= size.")
 	}
 
 	if l.head == nil {

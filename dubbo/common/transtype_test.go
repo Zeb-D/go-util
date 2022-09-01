@@ -172,7 +172,7 @@ func Test_struct2MapAll_Map(t *testing.T) {
 	testData.Baba["struct"] = structdata
 
 	testData.AaAa = "aaaa"
-	testData.CaCa["k1"] = "v1"
+	testData.CaCa["k1"] = "lru"
 	testData.CaCa["kv2"] = "v2"
 	testData.DdDd = nil
 	t.Log(reflect.TypeOf(testData.CaCa["k1"]).Kind())

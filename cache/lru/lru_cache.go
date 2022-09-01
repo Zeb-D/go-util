@@ -1,14 +1,13 @@
-package v1
+package lru
 
 import (
+	simple2 "github.com/Zeb-D/go-util/cache/lru/simple"
 	"sync"
-
-	"github.com/Zeb-D/go-util/cache/simple"
 )
 
 // LRUCache is a thread-safe fixed size LRU cache.
 type LRUCache struct {
-	lru  simple.LRUCache
+	lru  simple2.LRUCache
 	lock sync.RWMutex
 }
 
@@ -20,7 +19,7 @@ func NewLRUCache(size int) (*LRUCache, error) {
 // NewWithEvict constructs a fixed size cache with the given eviction
 // callback.
 func NewWithEvict(size int, onEvicted func(key interface{}, value interface{})) (*LRUCache, error) {
-	lru, err := simple.NewLRU(size, simple.EvictCallback(onEvicted))
+	lru, err := simple2.NewLRU(size, simple2.EvictCallback(onEvicted))
 	if err != nil {
 		return nil, err
 	}
@@ -38,9 +37,9 @@ func (c *LRUCache) Purge() {
 }
 
 // Add adds a value to the cache.  Returns true if an eviction occurred.
-func (c *LRUCache) Add(key, value interface{}) (evicted bool) {
+func (c *LRUCache) Set(key, value interface{}) (evicted bool) {
 	c.lock.Lock()
-	evicted = c.lru.Add(key, value)
+	evicted = c.lru.Set(key, value)
 	c.lock.Unlock()
 	return evicted
 }
@@ -81,7 +80,7 @@ func (c *LRUCache) ContainsOrAdd(key, value interface{}) (ok, evicted bool) {
 	if c.lru.Contains(key) {
 		return true, false
 	}
-	evicted = c.lru.Add(key, value)
+	evicted = c.lru.Set(key, value)
 	return false, evicted
 }
 

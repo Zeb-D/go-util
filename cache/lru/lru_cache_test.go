@@ -1,4 +1,4 @@
-package v1
+package lru
 
 import (
 	"math/rand"
@@ -21,7 +21,7 @@ func BenchmarkLRU_Rand(b *testing.B) {
 	var hit, miss int
 	for i := 0; i < 2*b.N; i++ {
 		if i%2 == 0 {
-			l.Add(trace[i], trace[i])
+			l.Set(trace[i], trace[i])
 		} else {
 			_, ok := l.Get(trace[i])
 			if ok {
@@ -52,7 +52,7 @@ func BenchmarkLRU_Freq(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		l.Add(trace[i], trace[i])
+		l.Set(trace[i], trace[i])
 	}
 	var hit, miss int
 	for i := 0; i < b.N; i++ {
@@ -80,7 +80,7 @@ func TestLRU(t *testing.T) {
 	}
 
 	for i := 0; i < 256; i++ {
-		l.Add(i, i)
+		l.Set(i, i)
 	}
 	if l.Len() != 128 {
 		t.Fatalf("bad len: %v", l.Len())
@@ -132,7 +132,7 @@ func TestLRU(t *testing.T) {
 	}
 }
 
-// test that Add returns true/false if an eviction occurred
+// test that Set returns true/false if an eviction occurred
 func TestLRUAdd(t *testing.T) {
 	evictCounter := 0
 	onEvicted := func(k interface{}, v interface{}) {
@@ -144,10 +144,10 @@ func TestLRUAdd(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if l.Add(1, 1) == true || evictCounter != 0 {
+	if l.Set(1, 1) == true || evictCounter != 0 {
 		t.Errorf("should not have an eviction")
 	}
-	if l.Add(2, 2) == false || evictCounter != 1 {
+	if l.Set(2, 2) == false || evictCounter != 1 {
 		t.Errorf("should have an eviction")
 	}
 }
@@ -159,13 +159,13 @@ func TestLRUContains(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	l.Add(1, 1)
-	l.Add(2, 2)
+	l.Set(1, 1)
+	l.Set(2, 2)
 	if !l.Contains(1) {
 		t.Errorf("1 should be contained")
 	}
 
-	l.Add(3, 3)
+	l.Set(3, 3)
 	if l.Contains(1) {
 		t.Errorf("Contains should not have updated recent-ness of 1")
 	}
@@ -178,8 +178,8 @@ func TestLRUContainsOrAdd(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	l.Add(1, 1)
-	l.Add(2, 2)
+	l.Set(1, 1)
+	l.Set(2, 2)
 	contains, evict := l.ContainsOrAdd(1, 1)
 	if !contains {
 		t.Errorf("1 should be contained")
@@ -188,7 +188,7 @@ func TestLRUContainsOrAdd(t *testing.T) {
 		t.Errorf("nothing should be evicted here")
 	}
 
-	l.Add(3, 3)
+	l.Set(3, 3)
 	contains, evict = l.ContainsOrAdd(1, 1)
 	if contains {
 		t.Errorf("1 should not have been contained")
@@ -208,13 +208,13 @@ func TestLRUPeek(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	l.Add(1, 1)
-	l.Add(2, 2)
+	l.Set(1, 1)
+	l.Set(2, 2)
 	if v, ok := l.Peek(1); !ok || v != 1 {
 		t.Errorf("1 should be set to 1: %v, %v", v, ok)
 	}
 
-	l.Add(3, 3)
+	l.Set(3, 3)
 	if l.Contains(1) {
 		t.Errorf("should not have updated recent-ness of 1")
 	}
@@ -232,8 +232,8 @@ func TestLRUResize(t *testing.T) {
 	}
 
 	// Downsize
-	l.Add(1, 1)
-	l.Add(2, 2)
+	l.Set(1, 1)
+	l.Set(2, 2)
 	evicted := l.Resize(1)
 	if evicted != 1 {
 		t.Errorf("1 element should have been evicted: %v", evicted)
@@ -242,7 +242,7 @@ func TestLRUResize(t *testing.T) {
 		t.Errorf("onEvicted should have been called 1 time: %v", onEvictCounter)
 	}
 
-	l.Add(3, 3)
+	l.Set(3, 3)
 	if l.Contains(1) {
 		t.Errorf("Element 1 should have been evicted")
 	}
@@ -253,7 +253,7 @@ func TestLRUResize(t *testing.T) {
 		t.Errorf("0 elements should have been evicted: %v", evicted)
 	}
 
-	l.Add(4, 4)
+	l.Set(4, 4)
 	if !l.Contains(3) || !l.Contains(4) {
 		t.Errorf("LRUCache should have contained 2 elements")
 	}
